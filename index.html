@@ -211,13 +211,26 @@
             overflow: visible;
         }
 
-        /* --- Empty State --- */
+        /* --- Empty State (Amélioré) --- */
         .empty-state {
             position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             text-align: center;
             z-index: 10;
+            background: rgba(253, 252, 250, 0.95);
+            padding: 40px 60px;
+            border: 2px dashed var(--teal);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .empty-state:hover {
+            background: #fff;
+            border-color: var(--midnight);
+            transform: translate(-50%, -50%) scale(1.02);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         }
         .empty-state p { font-family: var(--font-title); font-style: italic; font-size: 1.5rem; color: var(--slate); margin-bottom: 10px;}
         .empty-state span { font-variant: small-caps; color: #718096; font-size: 0.9rem; }
@@ -477,8 +490,11 @@
         <div class="toolbar-group" style="margin-left:auto;">
             <button id="btn-axis-style">✎ Style axe</button>
             <button id="btn-add-event" class="primary">+ Ajouter</button>
+            <button id="btn-save-data">💾 Sauvegarder</button>
+            <button id="btn-load-data">📂 Ouvrir</button>
             <button id="btn-export">Export PNG</button>
             <button id="btn-export-pdf">Export PDF</button>
+            <input type="file" id="f-load-data" accept=".json" style="display:none;">
         </div>
     </div>
 
@@ -487,7 +503,7 @@
         <div class="central-band" id="central-band"></div>
         <div class="empty-state" id="empty-state">
             <p>La frise est vierge</p>
-            <span>Double-cliquez pour ajouter un événement</span>
+            <span>Cliquez ici ou double-cliquez sur l'axe pour ajouter un événement</span>
         </div>
         <div class="scroll-area" id="scroll-area">
             <div class="timeline-canvas" id="timeline-canvas">
@@ -741,13 +757,14 @@
         if (isYearOnly) {
             ev.start.y = Math.round(newFrac);
         } else {
-            ev.start.y = Math.floor(newFrac);
-            let rem = newFrac - ev.start.y;
-            if(rem < 0) rem += 1;
+            let safeFrac = newFrac + 0.00001; 
+            ev.start.y = Math.floor(safeFrac);
+            let rem = safeFrac - ev.start.y;
+            
             ev.start.m = Math.floor(rem * 12) + 1;
             if (ev.start.d) {
                 let remM = rem * 12 - (ev.start.m - 1);
-                ev.start.d = Math.round(remM * 30.416) + 1;
+                ev.start.d = Math.floor(remM * 30.416) + 1;
                 if(ev.start.d > 31) ev.start.d = 31;
                 if(ev.start.d < 1) ev.start.d = 1;
             }
@@ -759,13 +776,14 @@
             if (isEndYearOnly) {
                 ev.end.y = Math.round(endFrac);
             } else {
-                ev.end.y = Math.floor(endFrac);
-                let rem = endFrac - ev.end.y;
-                if(rem < 0) rem += 1;
+                let safeEnd = endFrac + 0.00001;
+                ev.end.y = Math.floor(safeEnd);
+                let rem = safeEnd - ev.end.y;
+                
                 ev.end.m = Math.floor(rem * 12) + 1;
                 if (ev.end.d) {
                     let remM = rem * 12 - (ev.end.m - 1);
-                    ev.end.d = Math.round(remM * 30.416) + 1;
+                    ev.end.d = Math.floor(remM * 30.416) + 1;
                     if(ev.end.d > 31) ev.end.d = 31;
                     if(ev.end.d < 1) ev.end.d = 1;
                 }
@@ -779,10 +797,8 @@
         
         if (events.length === 0) {
             elEmpty.style.display = 'block';
-            elTimeline.style.opacity = '0';
-            elCentralBand.style.opacity = '0';
-            renderLegend();
-            return;
+            elTimeline.style.opacity = '0.4';
+            elCentralBand.style.opacity = '0.4';
         } else {
             elEmpty.style.display = 'none';
             elTimeline.style.opacity = '1';
@@ -1003,11 +1019,75 @@
         else foot.style.display = 'flex';
     }
 
+    // --- Save & Load ---
+    function saveTimelineData() {
+        const data = {
+            events: events,
+            view: view,
+            axisStyle: axisStyle,
+            title: document.querySelector('.masthead-title').innerText,
+            student: {
+                nom: document.getElementById('info-nom').value,
+                prenom: document.getElementById('info-prenom').value,
+                classe: document.getElementById('info-classe').value
+            }
+        };
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "frise_sauvegarde.json");
+        document.body.appendChild(downloadAnchorNode); 
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    }
+
+    function loadTimelineData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (data.events) events = data.events;
+                if (data.view) view = data.view;
+                if (data.axisStyle) axisStyle = data.axisStyle;
+                if (data.title) document.querySelector('.masthead-title').innerText = data.title;
+                if (data.student) {
+                    document.getElementById('info-nom').value = data.student.nom || '';
+                    document.getElementById('info-prenom').value = data.student.prenom || '';
+                    document.getElementById('info-classe').value = data.student.classe || '';
+                }
+                
+                if (events.length > 0) {
+                    currentId = Math.max(...events.map(ev => ev.id)) + 1;
+                } else {
+                    currentId = 1;
+                }
+                
+                document.getElementById('tb-min-year').value = view.minYear;
+                document.getElementById('tb-max-year').value = view.maxYear;
+                document.getElementById('scale-primary').value = view.primaryScale;
+                document.getElementById('scale-secondary').value = view.secondaryScale;
+                
+                updateUI();
+            } catch (err) {
+                alert("Erreur : Impossible de lire ce fichier de sauvegarde.");
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = ''; // Reset
+    }
+
     let dragObj = { isDown: false, startX: 0, scrollLeft: 0, hasMoved: false };
     let resizeObj = { isResizing: false, el: null, evId: null, startX: 0, startY: 0, startW: 0, startH: 0, hasMoved: false };
     let cardDragObj = { isDragging: false, el: null, lineEl: null, pointEl: null, bandEl: null, dateEl: null, evId: null, startX: 0, startY: 0, startOffset: 0, currentOffset: 0, isTop: true, startFrac: 0, durationFrac: 0, pxPerYear: 0, hasMoved: false };
     
     function bindEvents() {
+        elEmpty.addEventListener('click', () => {
+            let year = Math.round((view.minYear + view.maxYear) / 2);
+            openEventModal(null, year);
+        });
+
         elScroll.addEventListener('mousedown', e => {
             if(e.target.classList.contains('resize-handle')) {
                 e.stopPropagation();
@@ -1089,7 +1169,8 @@
                 }
 
                 if (cardDragObj.hasMoved) {
-                    // Update Vertical Offset
+                    let ev = events.find(x => x.id === cardDragObj.evId);
+
                     let newOffset = cardDragObj.isTop ? cardDragObj.startOffset - deltaY : cardDragObj.startOffset + deltaY;
                     newOffset = Math.max(5, newOffset); 
                     cardDragObj.currentOffset = newOffset;
@@ -1103,12 +1184,19 @@
                     }
                     if(cardDragObj.lineEl) cardDragObj.lineEl.style.height = `${newOffset}px`;
 
-                    // Update Horizontal position (Date)
                     if (cardDragObj.pxPerYear > 0) {
                         let addedYears = deltaX / cardDragObj.pxPerYear;
-                        let newFrac = cardDragObj.startFrac + addedYears;
+                        let rawFrac = cardDragObj.startFrac + addedYears;
                         
-                        let ev = events.find(x => x.id === cardDragObj.evId);
+                        let newFrac;
+                        if (!ev.start.m && !ev.start.d) {
+                            newFrac = Math.round(rawFrac);
+                        } else if (ev.start.m && !ev.start.d) {
+                            newFrac = Math.round(rawFrac * 12) / 12;
+                        } else {
+                            newFrac = Math.round(rawFrac * 365) / 365;
+                        }
+                        
                         applyFracToEvent(ev, newFrac, cardDragObj.durationFrac);
 
                         let xStart = MARGIN_X + (newFrac - view.minYear) * cardDragObj.pxPerYear;
@@ -1154,7 +1242,6 @@
                     if(ev) {
                         ev.offsetY = cardDragObj.currentOffset;
                         
-                        // Recalcul des bornes auto-zoom si l'événement a été glissé au bord
                         let startFrac = getFractionalYear(ev.start.y, 1, 1);
                         if(startFrac < view.minYear) view.minYear = Math.floor(startFrac) - 5;
                         if(startFrac > view.maxYear) view.maxYear = Math.ceil(startFrac) + 5;
@@ -1258,6 +1345,10 @@
 
         document.getElementById('btn-export').addEventListener('click', exportToPNG);
         document.getElementById('btn-export-pdf').addEventListener('click', exportToPDF);
+        
+        document.getElementById('btn-save-data').addEventListener('click', saveTimelineData);
+        document.getElementById('btn-load-data').addEventListener('click', () => document.getElementById('f-load-data').click());
+        document.getElementById('f-load-data').addEventListener('change', loadTimelineData);
     }
 
     function setupTooltip(el, ev, dateStr) {
