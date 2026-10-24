@@ -8,8 +8,8 @@ const { spawnSync } = require('child_process');
 const outDir = path.join(process.env.LOCALAPPDATA || os.tmpdir(), 'frise-chronologique-build');
 const releaseDir = path.join(__dirname, 'release');
 
-// index.html is the single source of truth; the standalone web version is a copy of it.
-fs.copyFileSync(path.join(__dirname, 'index.html'), path.join(__dirname, '..', 'frise.html'));
+// index.html is the single source of truth; the root index.html (web version, served by GitHub Pages) is a copy of it.
+fs.copyFileSync(path.join(__dirname, 'index.html'), path.join(__dirname, '..', 'index.html'));
 
 fs.rmSync(outDir, { recursive: true, force: true });
 const builder = path.join(__dirname, 'node_modules', '.bin', process.platform === 'win32' ? 'electron-builder.cmd' : 'electron-builder');
