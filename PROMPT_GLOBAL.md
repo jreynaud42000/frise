@@ -57,9 +57,10 @@ Trois types : **événement ponctuel**, **période**, **césure**.
 
 ## 9. Application Windows (.exe)
 - Empaquetage **Electron** (`main.js` charge `index.html`, menu masqué, fenêtre 1400×900) avec **electron-builder** : installeur NSIS (raccourcis Bureau/Menu Démarrer, dossier d'installation modifiable) + version portable.
-- Prérequis : Node.js ≥ 14 (testé avec Node 24 LTS) ; icône `.ico` multi-résolution incluant **256×256** (obligatoire pour l'installeur) ; `appId` `com.rajeditions.frisechronologique`, auteur « RAJ Editions ».
-- Commande : `npm install` puis `npm run dist` → `dist/`.
-- Attention : un dossier synchronisé par OneDrive peut faire échouer ponctuellement `rcedit` (« Unable to commit changes ») — le retry automatique suffit généralement.
+- Versions : Electron 44, electron-builder 26. Prérequis : Node.js ≥ 22.12 (testé avec Node 24 LTS) ; icône `.ico` multi-résolution incluant **256×256** (obligatoire pour l'installeur) ; `appId` `com.rajeditions.frisechronologique`, auteur « RAJ Editions ».
+- Commande : `npm install` puis `npm run dist` (script `build.js`) → exécutables copiés dans `release/`.
+- `build.js` construit hors OneDrive (`%LOCALAPPDATA%\frise-chronologique-build`) pour éviter les échecs de `rcedit` et la synchronisation de ~300 Mo de fichiers intermédiaires.
+- **Source unique** : `frise-desktop/index.html`. `frise.html` (version web) en est une copie, régénérée automatiquement à chaque `npm run dist`.
 
 ## Contraintes de qualité
 - Un seul fichier HTML autonome pour l'app ; aucun appel réseau hormis Google Fonts.

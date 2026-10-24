@@ -1,1473 +1,1013 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Frise Chronologique Interactive</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-:root{
-  --teal:#3a7d76;
-  --bordeaux:#8c2b35;
-  --rouille:#b5451e;
-  --or:#c8922a;
-  --ardoise:#4a5568;
-  --olive:#5c6e2e;
-  --prune:#6b3f5e;
-  --bleunuit:#2c4a5e;
-  --cream:#fdfcfa;
-  --band:#f4f1ec;
-  --ink:#2b2a28;
-  --line:#d8d2c4;
-}
-*{box-sizing:border-box;}
-html,body{margin:0;padding:0;background:var(--cream);color:var(--ink);font-family:'Source Sans 3',sans-serif;height:100%;}
-h1,h2,h3{font-family:'Lora',serif;}
-button{
-  font-family:'Source Sans 3',sans-serif;
-  background:none;border:none;border-bottom:2px solid transparent;
-  color:var(--bleunuit);font-size:.85rem;font-weight:600;letter-spacing:.02em;
-  padding:6px 10px;cursor:pointer;border-radius:0;
-}
-button:hover{border-bottom-color:var(--bleunuit);}
-button:active{opacity:.7;}
-button.primary{background:var(--bleunuit);color:var(--cream);padding:7px 16px;}
-button.primary:hover{background:var(--ink);border-bottom-color:transparent;}
-button.danger{color:var(--bordeaux);}
-button.danger:hover{border-bottom-color:var(--bordeaux);}
-input,select,textarea{
-  font-family:'Source Sans 3',sans-serif;font-size:.85rem;color:var(--ink);
-  background:transparent;border:1px solid transparent;padding:4px 6px;border-radius:0;
-}
-input:hover,select:hover,textarea:hover,input:focus,select:focus,textarea:focus{
-  border:1px solid var(--line);outline:none;background:#fff;
-}
-/* ===== Masthead ===== */
-.masthead{
-  display:flex;align-items:flex-start;gap:18px;padding:16px 24px;
-  border-bottom:1px solid var(--line);background:var(--cream);
-}
-.masthead .logo{height:80px;max-height:80px;width:auto;flex:0 0 auto;}
-.masthead-center{flex:1;text-align:center;min-width:0;}
-.masthead-center h1{
-  font-size:2rem;font-weight:700;margin:4px 0 6px;outline:none;
-  border-bottom:1px dashed transparent;display:inline-block;padding:0 4px;
-}
-.masthead-center h1:hover,.masthead-center h1:focus{border-bottom-color:var(--line);}
-.student-fields{display:flex;justify-content:center;gap:10px;}
-.student-fields input{width:140px;text-align:center;border-bottom:1px solid var(--line);}
-.counter{flex:0 0 auto;text-align:right;font-family:'Lora',serif;font-size:.95rem;color:var(--ardoise);padding-top:10px;min-width:130px;}
-.counter b{font-size:1.6rem;color:var(--bleunuit);display:block;line-height:1;}
-/* ===== Toolbar ===== */
-.toolbar{
-  display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;
-  padding:8px 24px;background:#fff;border-bottom:1px solid var(--line);
-  font-size:.85rem;
-}
-.tb-group{display:flex;align-items:center;gap:4px;padding-right:16px;border-right:1px solid var(--line);}
-.tb-group:last-child{border-right:none;}
-.tb-group label{color:var(--ardoise);font-size:.78rem;margin-left:6px;}
-.tb-group input[type=number]{width:64px;}
-.tb-group select{border:1px solid var(--line);}
-/* ===== Timeline ===== */
-.timeline-viewport{
-  overflow-x:auto;overflow-y:hidden;position:relative;background:var(--cream);
-  cursor:grab;user-select:none;
-}
-.timeline-viewport.panning{cursor:grabbing;}
-.timeline-canvas{position:relative;height:560px;background:var(--cream);}
-.axis-band{position:absolute;left:0;right:0;background:var(--band);}
-#axisSvg{position:absolute;top:0;left:0;pointer-events:none;}
-#eventsLayer{position:absolute;top:0;left:0;}
-.empty-state{
-  position:absolute;top:0;left:0;right:0;bottom:0;
-  display:flex;align-items:center;justify-content:center;pointer-events:none;
-}
-.empty-box{
-  pointer-events:auto;cursor:pointer;border:2px dashed var(--ardoise);
-  padding:28px 40px;font-family:'Lora',serif;font-size:1.1rem;color:var(--ardoise);
-  background:rgba(255,255,255,.5);text-align:center;
-}
-.empty-box:hover{border-color:var(--bleunuit);color:var(--bleunuit);}
-/* ===== Event elements ===== */
-.tl-point-hit{position:absolute;width:26px;height:26px;cursor:pointer;z-index:6;}
-.tl-point{position:absolute;border-radius:50%;box-shadow:0 0 0 3px rgba(255,255,255,.9);transition:transform .15s;}
-.tl-point-hit:hover .tl-point{transform:scale(1.25);}
-.edit-icon{
-  position:absolute;top:-11px;right:-11px;width:22px;height:22px;background:#fff;
-  border:1px solid var(--line);border-radius:50%;display:flex;align-items:center;justify-content:center;
-  font-size:.7rem;color:var(--teal);opacity:0;transition:opacity .15s;pointer-events:none;
-}
-.tl-card:hover .edit-icon{opacity:1;}
-.tl-period-band{position:absolute;opacity:.22;pointer-events:none;}
-.tl-break-hit{position:absolute;cursor:pointer;z-index:5;}
-.tl-leader{position:absolute;width:0;border-left-width:1.5px;border-left-style:dashed;pointer-events:none;}
-.tl-card{
-  position:absolute;width:190px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.12);
-  border-top:4px solid var(--teal);padding:8px 10px 10px;cursor:grab;font-size:.78rem;
-}
-.tl-card:active{cursor:grabbing;}
-.tl-card .cat{font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;color:var(--ardoise);margin-bottom:2px;}
-.tl-card .date{font-family:'Lora',serif;font-style:italic;color:var(--ardoise);font-size:.72rem;margin-bottom:3px;}
-.tl-card .ttl{font-family:'Lora',serif;font-weight:700;font-size:.92rem;margin:0 0 3px;line-height:1.2;}
-.tl-card .desc{font-size:.74rem;line-height:1.3;color:#333;max-height:4.6em;overflow:hidden;}
-.tl-card .img-wrap{position:relative;margin-bottom:6px;}
-.tl-card img{display:block;max-width:100%;}
-.img-resize-handle{
-  position:absolute;right:-2px;bottom:-2px;width:12px;height:12px;
-  background:var(--bleunuit);cursor:nwse-resize;opacity:.7;
-}
-.img-resize-handle:hover{opacity:1;}
-/* ===== Legend ===== */
-.legend{display:flex;flex-wrap:wrap;gap:14px;padding:10px 24px;border-top:1px solid var(--line);background:#fff;font-size:.78rem;}
-.legend .item{display:flex;align-items:center;gap:6px;}
-.legend .sw{width:12px;height:12px;display:inline-block;}
-/* ===== Tooltip ===== */
-#tooltip{
-  position:fixed;z-index:200;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,.18);
-  border-top:3px solid var(--teal);padding:10px 12px;width:230px;pointer-events:none;
-  opacity:0;transition:opacity .12s;font-size:.78rem;
-}
-#tooltip.show{opacity:1;}
-#tooltip img{max-width:100%;display:block;margin-bottom:6px;}
-#tooltip .tt-date{font-family:'Lora',serif;font-style:italic;color:var(--ardoise);margin-bottom:3px;}
-#tooltip .tt-title{font-family:'Lora',serif;font-weight:700;font-size:.95rem;margin-bottom:4px;}
-#tooltip .tt-desc{color:#333;line-height:1.35;white-space:pre-wrap;}
-/* ===== Modal ===== */
-.modal-overlay{
-  position:fixed;inset:0;background:rgba(20,20,18,.5);display:none;
-  align-items:center;justify-content:center;z-index:100;
-}
-.modal-overlay.show{display:flex;}
-.modal{
-  background:#fff;width:520px;max-width:92vw;max-height:88vh;overflow:auto;
-  padding:22px 26px;box-shadow:0 10px 40px rgba(0,0,0,.3);
-}
-.modal h2{margin:0 0 14px;font-size:1.3rem;border-bottom:2px solid var(--bleunuit);padding-bottom:8px;}
-.field-row{display:flex;gap:10px;margin-bottom:10px;}
-.field{flex:1;display:flex;flex-direction:column;gap:3px;}
-.field label{font-size:.72rem;color:var(--ardoise);text-transform:uppercase;letter-spacing:.03em;}
-.field input,.field select,.field textarea{border:1px solid var(--line);width:100%;}
-.field textarea{resize:vertical;min-height:60px;font-family:'Source Sans 3',sans-serif;}
-.date-group{display:flex;gap:6px;}
-.date-group input{width:100%;}
-.swatches{display:flex;gap:6px;flex-wrap:wrap;}
-.swatch{width:26px;height:26px;cursor:pointer;border:2px solid transparent;}
-.swatch.selected{border-color:var(--ink);}
-.drop-zone{
-  border:2px dashed var(--line);padding:14px;text-align:center;font-size:.78rem;
-  color:var(--ardoise);cursor:pointer;
-}
-.drop-zone.drag{border-color:var(--teal);color:var(--teal);}
-.img-preview{max-width:100%;max-height:120px;display:block;margin-top:6px;}
-.modal-actions{display:flex;justify-content:space-between;margin-top:18px;padding-top:12px;border-top:1px solid var(--line);}
-.modal-actions .right{display:flex;gap:8px;}
-.axis-preview-line{height:60px;border:1px solid var(--line);margin:10px 0;background:var(--band);}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frise Chronologique Interactive</title>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --teal: #3a7d76; --burgundy: #8c2b35; --rust: #b5451e; --gold: #c8922a;
+            --slate: #4a5568; --olive: #5c6e2e; --plum: #6b3f5e; --midnight: #2c4a5e;
+            --bg-cream: #f0ece1; --bg-band: #e2ddcf; --text-main: #1a202c; --border-light: #d1cabe;
+            --font-title: 'Lora', serif; --font-ui: 'Source Sans 3', sans-serif;
+            --axis-color: #4a5568; --axis-width: 2px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-ui); background-color: var(--bg-cream); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .masthead { display: flex; align-items: center; justify-content: space-between; padding: 15px 30px; background: #fff; border-bottom: 1px solid var(--border-light); }
+        .masthead-logo { height: 80px; width: auto; max-width: 200px; object-fit: contain; }
+        .masthead-brand { font-family: var(--font-title); font-size: 0.85rem; color: var(--slate); margin-left: 8px; white-space: nowrap; }
+        .masthead-center { display: flex; flex-direction: column; align-items: center; flex-grow: 1; padding: 0 20px; }
+        .masthead-title { font-family: var(--font-title); font-size: 1.8rem; color: var(--midnight); outline: none; text-align: center; width: 100%; margin-bottom: 6px; }
+        .masthead-title:focus { background-color: rgba(0,0,0,0.02); }
+        .student-info { display: flex; gap: 15px; justify-content: center; }
+        .student-info input { border: 1px dashed transparent; border-bottom: 1px solid var(--border-light); background: transparent; font-size: 0.95rem; text-align: center; width: 130px; color: var(--slate); padding: 2px 5px; font-family: var(--font-ui); transition: all 0.2s; }
+        .student-info input:hover { border: 1px dashed var(--border-light); }
+        .student-info input:focus { border: 1px dashed var(--teal); outline: none; background: rgba(0,0,0,0.02); }
+        .masthead-counter { font-size: 0.9rem; color: var(--slate); font-weight: 600; }
+        .toolbar { display: flex; flex-wrap: wrap; gap: 15px; padding: 10px 30px; background: #fff; border-bottom: 1px solid var(--border-light); align-items: center; font-size: 0.9rem; }
+        .toolbar-group { display: flex; align-items: center; gap: 8px; border-right: 1px solid var(--border-light); padding-right: 15px; }
+        .toolbar-group:last-child { border-right: none; }
+        input, select, button { font-family: inherit; font-size: 0.9rem; padding: 4px 8px; border: 1px solid #cbd5e1; background: #fff; color: inherit; }
+        input[type="number"] { width: 70px; }
+        button { cursor: pointer; border: 1px solid var(--slate); background: transparent; color: var(--slate); font-weight: 600; transition: all 0.2s; border-radius: 0; }
+        button:hover { background: rgba(0,0,0,0.05); }
+        button.primary { background: var(--teal); color: #fff; border-color: var(--teal); }
+        button.primary:hover { background: #2f655f; }
+        button.danger-outline { color: var(--burgundy); border-color: var(--burgundy); }
+        button.danger-outline:hover { background: rgba(140,43,53,0.05); }
+        .timeline-container { flex-grow: 1; position: relative; background: var(--bg-cream); overflow: hidden; display: flex; align-items: center; }
+        .central-band { position: absolute; top: 50%; left: 0; right: 0; height: 300px; transform: translateY(-50%); background: var(--bg-band); z-index: 0; }
+        .scroll-area { position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow-x: auto; overflow-y: hidden; cursor: grab; z-index: 1; }
+        .scroll-area:active { cursor: grabbing; }
+        .timeline-canvas { position: relative; height: 100%; min-width: 100%; transform-origin: left center; }
+        .axis-hitbox { position: absolute; top: calc(50% - 20px); left: 0; width: 100%; height: 40px; cursor: crosshair; z-index: 2; }
+        .axis-svg { position: absolute; top: 50%; left: 0; width: 100%; height: 100px; transform: translateY(-50%); pointer-events: none; overflow: visible; z-index: 1; }
+        .empty-state { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 10; background: var(--teal); color: white; padding: 30px 50px; border-radius: 12px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 10px 25px rgba(58, 125, 118, 0.3); }
+        .empty-state:hover { background: #2f655f; transform: translate(-50%, -50%) scale(1.02); box-shadow: 0 15px 35px rgba(58, 125, 118, 0.4); }
+        .empty-state p { font-family: var(--font-title); font-size: 1.5rem; margin-bottom: 10px; color: #fff;}
+        .empty-state span { font-size: 0.95rem; font-weight: 600; opacity: 0.9; }
+        .period-band { position: absolute; top: 50%; height: 20px; transform: translateY(-50%); opacity: 0.3; pointer-events: none; }
+        .event-point { position: absolute; top: 50%; width: 24px; height: 24px; border: 6px solid transparent; background-clip: padding-box; border-radius: 50%; transform: translate(-50%, -50%); cursor: grab; z-index: 6; transition: transform 0.2s; }
+        .event-point:hover { transform: translate(-50%, -50%) scale(1.2); }
+        .connection-line { position: absolute; width: 2px; box-sizing: border-box; border-left: 2px dotted; transform: translateX(-50%); z-index: 3; pointer-events: none; }
+        .event-card { position: absolute; background: #fff; border: 1px solid var(--border-light); border-top: 3px solid var(--teal); min-width: 160px; max-width: 350px; width: max-content; padding: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor: grab; z-index: 4; }
+        .event-card:active { cursor: grabbing; }
+        .edit-icon { position: absolute; top: -12px; right: -12px; width: 24px; height: 24px; background: #fff; border: 1px solid var(--border-light); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 14px; color: var(--teal); opacity: 0; transition: opacity 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); pointer-events: none; }
+        .event-card:hover .edit-icon { opacity: 1; }
+        .card-img-container { position: relative; display: flex; justify-content: flex-start; margin-bottom: 6px; }
+        .card-img { width: 100%; height: 100%; object-fit: cover; border: 1px solid var(--border-light); pointer-events: none; }
+        .resize-handle { position: absolute; bottom: 0; right: 0; width: 14px; height: 14px; background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.3) 50%); cursor: nwse-resize; z-index: 10; opacity: 0.5; transition: opacity 0.2s; }
+        .resize-handle:hover { opacity: 1; background: linear-gradient(135deg, transparent 50%, var(--teal) 50%); }
+        .card-date { font-size: 0.75rem; color: var(--slate); font-weight: 600; margin-bottom: 2px; }
+        .card-title { font-family: var(--font-title); font-size: 0.9rem; font-weight: 600; margin-bottom: 4px; line-height: 1.2; color: var(--text-main); }
+        .card-desc { font-size: 0.75rem; color: #4a5568; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .cesure-hitbox { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; cursor: pointer; z-index: 10; }
+        .cesure-hitbox:hover { background: rgba(58, 125, 118, 0.1); border-radius: 4px; }
+        #tooltip { position: absolute; background: #fff; border: 1px solid var(--border-light); box-shadow: 0 10px 15px rgba(0,0,0,0.1); padding: 12px; width: 250px; pointer-events: none; opacity: 0; z-index: 100; transition: opacity 0.2s; border-top: 3px solid var(--teal); }
+        #tooltip img { max-width: 100%; height: auto; margin-bottom: 8px; }
+        #tooltip h4 { font-family: var(--font-title); margin-bottom: 4px; }
+        #tooltip .tt-date { font-size: 0.8rem; font-weight: bold; color: var(--slate); margin-bottom: 8px;}
+        #tooltip p { font-size: 0.85rem; line-height: 1.4; white-space: pre-wrap;}
+        .footer { padding: 10px 30px; background: #fff; border-top: 1px solid var(--border-light); display: flex; gap: 20px; font-size: 0.85rem; align-items: center; }
+        .legend-item { display: flex; align-items: center; gap: 6px; }
+        .legend-swatch { width: 12px; height: 12px; border-radius: 2px; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal { background: var(--bg-cream); width: 500px; max-width: 90vw; border-top: 4px solid var(--teal); box-shadow: 0 20px 25px rgba(0,0,0,0.1); padding: 20px; max-height: 90vh; overflow-y: auto; }
+        .modal h2 { font-family: var(--font-title); margin-bottom: 15px; color: var(--midnight); }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; color: var(--slate); }
+        .form-row { display: flex; gap: 10px; }
+        .form-row > * { flex: 1; }
+        .form-group input[type="text"], .form-group textarea, .form-group select { width: 100%; padding: 6px; }
+        .form-group textarea { resize: vertical; height: 80px; }
+        .swatches { display: flex; gap: 8px; margin-top: 4px; }
+        .swatch { width: 24px; height: 24px; cursor: pointer; border: 2px solid transparent; }
+        .swatch.selected { border-color: #000; box-shadow: 0 0 0 2px #fff inset; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .btn-danger { color: var(--burgundy); border-color: var(--burgundy); margin-right: auto;}
+        .img-upload { border: 2px dashed #cbd5e1; padding: 10px; text-align: center; cursor: pointer; font-size: 0.85rem; color: var(--slate); }
+        .img-upload img { max-height: 80px; margin-top: 5px; }
+        .axis-swatches .swatch { width: 20px; height: 20px; }
+        
+        /* Styles spécifiques pour le guide d'aide */
+        .help-list { font-size: 0.95rem; color: var(--slate); margin-left: 20px; margin-bottom: 20px; line-height: 1.6; }
+        .help-list li { margin-bottom: 8px; }
+        .help-list b { color: var(--midnight); }
+        .help-section-title { font-family: var(--font-title); color: var(--teal); font-size: 1.2rem; margin-top: 15px; margin-bottom: 10px; border-bottom: 1px solid var(--border-light); padding-bottom: 5px; }
+    </style>
 </head>
 <body>
-
-<header class="masthead">
-  <img class="logo" alt="logo" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTAiIGZpbGw9IiMyYzRhNWUiLz48bGluZSB4MT0iMTAiIHkxPSIzMiIgeDI9IjU0IiB5Mj0iMzIiIHN0cm9rZT0iI2ZkZmNmYSIgc3Ryb2tlLXdpZHRoPSIyLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxjaXJjbGUgY3g9IjE2IiBjeT0iMzIiIHI9IjQiIGZpbGw9IiNjODkyMmEiLz48Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSI0IiBmaWxsPSIjOGMyYjM1Ii8+PGNpcmNsZSBjeD0iNDgiIGN5PSIzMiIgcj0iNCIgZmlsbD0iIzNhN2Q3NiIvPjxwYXRoIGQ9Ik01MCAyNiBMNTYgMzIgTDUwIDM4IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZGZjZmEiIHN0cm9rZS13aWR0aD0iMi41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4K" id="logoImg">
-  <div class="masthead-center">
-    <h1 id="titleEl" contenteditable="true" spellcheck="false">Frise chronologique</h1>
-    <div class="student-fields">
-      <input id="stuNom" placeholder="Nom">
-      <input id="stuPrenom" placeholder="Prénom">
-      <input id="stuClasse" placeholder="Classe">
-    </div>
-  </div>
-  <div class="counter"><b id="counterNum">0</b>événement(s)</div>
-</header>
-
-<div class="toolbar">
-  <div class="tb-group">
-    <label>De</label><input type="number" id="yearFrom" value="1800">
-    <label>À</label><input type="number" id="yearTo" value="2000">
-    <button id="btnApplyRange">Appliquer</button>
-  </div>
-  <div class="tb-group">
-    <button id="btnZoomOut" title="Zoom arrière">−</button>
-    <button id="btnZoomIn" title="Zoom avant">+</button>
-    <button id="btnFit">Ajuster</button>
-  </div>
-  <div class="tb-group">
-    <label>Éch. primaire</label>
-    <select id="scalePrimary"></select>
-    <label>Éch. secondaire</label>
-    <select id="scaleSecondary"></select>
-  </div>
-  <div class="tb-group">
-    <button id="btnAxisStyle">✎ Style axe</button>
-    <button id="btnAdd" class="primary">+ Ajouter</button>
-  </div>
-  <div class="tb-group">
-    <button id="btnSave">💾 Sauvegarder</button>
-    <button id="btnOpen">📂 Ouvrir</button>
-    <input type="file" id="fileOpen" accept=".json" hidden>
-  </div>
-  <div class="tb-group">
-    <button id="btnExportPng">Export PNG</button>
-    <button id="btnExportPdf">Export PDF</button>
-  </div>
-</div>
-
-<div class="timeline-viewport" id="viewport">
-  <div class="timeline-canvas" id="canvas">
-    <div class="axis-band" id="axisBand"></div>
-    <svg id="axisSvg"></svg>
-    <div id="eventsLayer"></div>
-    <div class="empty-state" id="emptyState">
-      <div class="empty-box" id="emptyBox">+ Cliquez pour ajouter le premier événement</div>
-    </div>
-  </div>
-</div>
-
-<footer class="legend" id="legend"></footer>
-
-<!-- Modal edition événement -->
-<div class="modal-overlay" id="editModalOverlay">
-  <div class="modal">
-    <h2 id="editModalTitle">Ajouter un événement</h2>
-    <div class="field-row">
-      <div class="field">
-        <label>Type</label>
-        <select id="fType">
-          <option value="event">Événement (point)</option>
-          <option value="period">Période (bande)</option>
-          <option value="cesure">Césure (saut de temps)</option>
-        </select>
-      </div>
-      <div class="field" id="fCatNameWrap">
-        <label>Catégorie (nom)</label>
-        <input id="fCatName" placeholder="ex: Politique">
-      </div>
-    </div>
-    <div class="field" id="fTitleWrap">
-      <label>Titre</label>
-      <input id="fTitle" placeholder="Titre de l'événement">
-    </div>
-    <div class="field-row">
-      <div class="field">
-        <label>Début (J / M / A)</label>
-        <div class="date-group">
-          <input type="number" id="fStartD" placeholder="J" min="1" max="31">
-          <input type="number" id="fStartM" placeholder="M" min="1" max="12">
-          <input type="number" id="fStartY" placeholder="Année">
+    <header class="masthead">
+        <img src="data:image/png;base64,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" alt="" width="40" height="40" />
+        <span class="masthead-brand">🄯 RAJ Editions</span>
+            <h1 class="masthead-title" contenteditable="true" spellcheck="false">Titre de la Frise (cliquez pour éditer)</h1>
+            <div class="student-info">
+                <input type="text" id="info-nom" placeholder="Nom">
+                <input type="text" id="info-prenom" placeholder="Prénom">
+                <input type="text" id="info-classe" placeholder="Classe">
+            </div>
         </div>
-      </div>
-      <div class="field" id="fEndWrap">
-        <label>Fin (J / M / A)</label>
-        <div class="date-group">
-          <input type="number" id="fEndD" placeholder="J" min="1" max="31">
-          <input type="number" id="fEndM" placeholder="M" min="1" max="12">
-          <input type="number" id="fEndY" placeholder="Année">
+        <div class="masthead-counter"><span id="event-count">0</span> élément(s)</div>
+    </header>
+    <div class="toolbar">
+        <div class="toolbar-group">
+            <label>Période :</label>
+            <input type="number" id="tb-min-year" placeholder="Ex: 1900">
+            <span>à</span>
+            <input type="number" id="tb-max-year" placeholder="Ex: 2000">
+            <button id="btn-apply-range">Appliquer</button>
         </div>
-      </div>
+        <div class="toolbar-group">
+            <label>Zoom :</label>
+            <button id="btn-zoom-out">−</button>
+            <button id="btn-zoom-in">+</button>
+            <button id="btn-zoom-auto">Ajuster</button>
+        </div>
+        <div class="toolbar-group">
+            <label>Échelle ppale :</label>
+            <select id="scale-primary">
+                <option value="auto">Auto</option><option value="1">1 an</option><option value="5">5 ans</option><option value="10">10 ans</option><option value="20">20 ans</option><option value="25">25 ans</option><option value="50">50 ans</option><option value="100">100 ans</option><option value="200">200 ans</option><option value="250">250 ans</option><option value="500">500 ans</option><option value="1000">1000 ans</option>
+            </select>
+            <label>Secondaire :</label>
+            <select id="scale-secondary">
+                <option value="auto">Auto</option><option value="1">1 an</option><option value="5">5 ans</option><option value="10">10 ans</option><option value="20">20 ans</option><option value="25">25 ans</option><option value="50">50 ans</option><option value="100">100 ans</option><option value="200">200 ans</option><option value="250">250 ans</option><option value="500">500 ans</option><option value="1000">1000 ans</option>
+            </select>
+        </div>
+        <div class="toolbar-group" style="margin-left:auto;">
+            <button id="btn-help">❓ Aide</button>
+            <button id="btn-axis-style">✎ Style axe</button>
+            <button id="btn-add-event" class="primary">+ Ajouter</button>
+            <button id="btn-save-data">💾 Sauvegarder</button>
+            <button id="btn-load-data">📂 Ouvrir</button>
+            <button id="btn-reset-data" class="danger-outline">🗑️ Effacer</button>
+            <button id="btn-export">Export PNG</button>
+            <button id="btn-export-pdf">Export PDF</button>
+            <input type="file" id="f-load-data" accept=".json" style="display:none;">
+        </div>
     </div>
-    <p id="fCesureHint" style="display:none;color:var(--ardoise);font-size:.8rem;margin:-4px 0 10px;">Une césure compresse la période entre début et fin en un symbole de coupure sur l'axe.</p>
-    <div id="fContentFields">
-    <div class="field">
-      <label>Description</label>
-      <textarea id="fDesc" placeholder="Description détaillée..."></textarea>
+    <div class="timeline-container" id="timeline-container">
+        <div class="central-band" id="central-band"></div>
+        <div class="empty-state" id="empty-state">
+            <p>Votre frise est prête !</p>
+            <span>✨ Cliquez ici pour ajouter le premier événement</span>
+        </div>
+        <div class="scroll-area" id="scroll-area">
+            <div class="timeline-canvas" id="timeline-canvas">
+                <div class="axis-hitbox" title="Double-cliquez ici pour ajouter un événement"></div>
+                <svg class="axis-svg" id="axis-svg" preserveAspectRatio="none">
+                    <defs>
+                        <marker id="arrow-solid" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--axis-color)" /></marker>
+                        <marker id="arrow-chevron" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 8 5 L 0 9" fill="none" stroke="var(--axis-color)" stroke-width="2" /></marker>
+                        <marker id="arrow-diamond" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 5 L 5 0 L 10 5 L 5 10 z" fill="var(--axis-color)" /></marker>
+                        <marker id="arrow-circle" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><circle cx="5" cy="5" r="4" fill="var(--axis-color)" /></marker>
+                    </defs>
+                    <g id="axis-ticks"></g>
+                </svg>
+                <div id="elements-layer"></div>
+            </div>
+        </div>
     </div>
-    <div class="field">
-      <label>Image</label>
-      <div class="drop-zone" id="fDropZone">Glissez une image ici ou cliquez pour choisir</div>
-      <input type="file" id="fImgFile" accept="image/*" hidden>
-      <img id="fImgPreview" class="img-preview" style="display:none;">
-    </div>
-    <div class="field">
-      <label>Couleur de catégorie</label>
-      <div class="swatches" id="fSwatches"></div>
-    </div>
-    <div class="field-row">
-      <div class="field">
-        <label>Position</label>
-        <select id="fPosition">
-          <option value="auto">Auto</option>
-          <option value="top">Haut</option>
-          <option value="bottom">Bas</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Alignement</label>
-        <select id="fAlign">
-          <option value="center">Centre</option>
-          <option value="left">Gauche</option>
-          <option value="right">Droite</option>
-        </select>
-      </div>
-    </div>
-    </div>
-    <div class="modal-actions">
-      <button class="danger" id="btnDeleteEvent" style="display:none;">Supprimer</button>
-      <div class="right">
-        <button id="btnCancelEdit">Annuler</button>
-        <button class="primary" id="btnSaveEvent">Enregistrer</button>
-      </div>
-    </div>
-  </div>
-</div>
+    <footer class="footer" id="legend-footer"></footer>
+    <div id="tooltip"></div>
 
-<!-- Modal style axe -->
-<div class="modal-overlay" id="axisModalOverlay">
-  <div class="modal">
-    <h2>Style de l'axe</h2>
-    <div class="axis-preview-line" id="axisPreviewWrap"><svg id="axisPreviewSvg" width="100%" height="60"></svg></div>
-    <div class="field-row">
-      <div class="field">
-        <label>Épaisseur ({{w}}px)</label>
-        <input type="range" id="axStrokeWidth" min="1" max="10" value="3">
-      </div>
-      <div class="field">
-        <label>Couleur</label>
-        <input type="color" id="axColor" value="#2c4a5e">
-      </div>
-    </div>
-    <div class="field-row">
-      <div class="field">
-        <label>Type de trait</label>
-        <select id="axDash">
-          <option value="solid">Plein</option>
-          <option value="dashed">Tirets</option>
-          <option value="dotted">Pointillés</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Flèche</label>
-        <select id="axArrow">
-          <option value="none">Aucune</option>
-          <option value="solid">Triangle plein</option>
-          <option value="chevron">Chevron</option>
-          <option value="diamond">Losange</option>
-          <option value="circle">Cercle</option>
-        </select>
-      </div>
-    </div>
-    <div class="modal-actions">
-      <div></div>
-      <div class="right">
-        <button id="btnCloseAxis">Fermer</button>
-      </div>
-    </div>
-  </div>
-</div>
+    <!-- Modale d'Aide -->
+    <div class="modal-overlay" id="modal-help">
+        <div class="modal" style="width: 600px;">
+            <h2>Guide d'utilisation</h2>
+            <div style="font-size:0.95rem; line-height:1.6; color:var(--slate); max-height: 60vh; overflow-y: auto; padding-right: 10px;">
+                <h3 class="help-section-title">🖱️ Navigation & Clics</h3>
+                <ul class="help-list">
+                    <li><b>Se déplacer :</b> Cliquez et glissez sur le fond de la frise pour naviguer horizontalement.</li>
+                    <li><b>Ajouter un élément :</b> Cliquez sur "+ Ajouter" ou <b>double-cliquez directement sur l'axe</b> de la frise.</li>
+                    <li><b>Modifier / Supprimer :</b> Double-cliquez sur une carte existante, un point, ou le symbole zig-zag d'une césure.</li>
+                </ul>
 
-<canvas id="exportCanvas" style="display:none;"></canvas>
-<div id="tooltip"></div>
+                <h3 class="help-section-title">✋ Glisser-Déposer (Drag & Drop)</h3>
+                <ul class="help-list">
+                    <li><b>Déplacer un événement :</b> Cliquez et maintenez une carte pour la déplacer horizontalement (sa date s'aimantera automatiquement selon sa précision) ou verticalement (pour ajuster son éloignement de l'axe).</li>
+                    <li><b>Redimensionner l'image :</b> Attrapez le petit repère dans le coin inférieur droit de l'image d'une carte pour la redimensionner librement.</li>
+                </ul>
+
+                <h3 class="help-section-title">⏱️ Les Césures</h3>
+                <ul class="help-list">
+                    <li>Une césure permet de créer un <b>saut dans le temps</b> (ex: masquer une période sans événement). L'échelle se contractera mathématiquement et un zig-zag apparaîtra sur l'axe.</li>
+                </ul>
+
+                <h3 class="help-section-title">💾 Sauvegarde & Export</h3>
+                <ul class="help-list">
+                    <li><b>Sauvegarder :</b> Télécharge un fichier de sauvegarde <code>.json</code> sur votre ordinateur contenant toutes vos données.</li>
+                    <li><b>Ouvrir :</b> Recharge une frise précédemment sauvegardée.</li>
+                    <li><b>Export PNG / PDF :</b> Génère une image ou un document de haute qualité qui inclut automatiquement le logo, le titre et les informations de l'élève.</li>
+                </ul>
+            </div>
+            <div class="modal-actions">
+                <button id="btn-close-help" class="primary">Compris !</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale Ajout/Edition -->
+    <div class="modal-overlay" id="modal-event">
+        <div class="modal">
+            <h2 id="modal-title">Ajouter un élément</h2>
+            <div class="form-group">
+                <label>Type</label>
+                <select id="f-type">
+                    <option value="event">Événement ponctuel</option>
+                    <option value="period">Période</option>
+                    <option value="cesure">Césure (saut de temps)</option>
+                </select>
+            </div>
+            <div id="group-standard-fields">
+                <div class="form-group"><label>Titre *</label><input type="text" id="f-title" required></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Début (Jour / Mois / Année *)</label>
+                    <div style="display:flex; gap:4px;">
+                        <input type="number" id="f-start-d" placeholder="JJ" min="1" max="31">
+                        <select id="f-start-m"><option value="">Mois</option><option value="1">Janv</option><option value="2">Févr</option><option value="3">Mars</option><option value="4">Avr</option><option value="5">Mai</option><option value="6">Juin</option><option value="7">Juil</option><option value="8">Août</option><option value="9">Sept</option><option value="10">Oct</option><option value="11">Nov</option><option value="12">Déc</option></select>
+                        <input type="number" id="f-start-y" placeholder="AAAA" required>
+                    </div>
+                </div>
+            </div>
+            <div class="form-row" id="group-end-date" style="display:none;">
+                <div class="form-group">
+                    <label>Fin (Jour / Mois / Année *)</label>
+                    <div style="display:flex; gap:4px;">
+                        <input type="number" id="f-end-d" placeholder="JJ" min="1" max="31">
+                        <select id="f-end-m"><option value="">Mois</option><option value="1">Janv</option><option value="2">Févr</option><option value="3">Mars</option><option value="4">Avr</option><option value="5">Mai</option><option value="6">Juin</option><option value="7">Juil</option><option value="8">Août</option><option value="9">Sept</option><option value="10">Oct</option><option value="11">Nov</option><option value="12">Déc</option></select>
+                        <input type="number" id="f-end-y" placeholder="AAAA">
+                    </div>
+                </div>
+            </div>
+            <div id="group-extended-fields">
+                <div class="form-group"><label>Description</label><textarea id="f-desc"></textarea></div>
+                <div class="form-group">
+                    <label>Image (Optionnelle)</label>
+                    <div class="img-upload" id="f-img-upload">Cliquez ou glissez une image ici<input type="file" id="f-file-input" accept="image/*" style="display:none;"><div id="f-img-preview"></div></div>
+                    <button type="button" id="btn-remove-img" style="display:none; font-size:0.75rem; margin-top:4px;">Supprimer l'image</button>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Catégorie (Couleur)</label><div class="swatches" id="f-swatches"></div></div>
+                    <div class="form-group"><label>Nom catégorie (Légende)</label><input type="text" id="f-cat-name" placeholder="Ex: Géopolitique"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Position</label><select id="f-pos"><option value="auto">Automatique (Alterné)</option><option value="top">Dessus</option><option value="bottom">Dessous</option></select></div>
+                    <div class="form-group"><label>Alignement</label><select id="f-align"><option value="center">Centré</option><option value="left">Aligné à gauche</option><option value="right">Aligné à droite</option></select></div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="btn-delete-event" class="btn-danger" style="display:none;">Supprimer</button>
+                <button id="btn-cancel-event">Annuler</button>
+                <button id="btn-save-event" class="primary">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal : Style Axe -->
+    <div class="modal-overlay" id="modal-axis">
+        <div class="modal" style="width: 400px;">
+            <h2>Style de l'axe</h2>
+            <div class="form-group"><label>Épaisseur (px) : <span id="axis-w-val">2</span></label><input type="range" id="a-width" min="1" max="8" value="2" style="width:100%"></div>
+            <div class="form-group"><label>Couleur</label><div style="display:flex; gap:10px; align-items:center;"><input type="color" id="a-color" value="#4a5568"><div class="swatches axis-swatches" id="a-swatches"></div></div></div>
+            <div class="form-group"><label>Type de trait</label><select id="a-dash"><option value="">Plein</option><option value="10,5">Tirets</option><option value="2,4">Pointillés</option></select></div>
+            <div class="form-group"><label>Style de flèche</label><select id="a-arrow"><option value="solid">Triangle plein</option><option value="chevron">Chevron ouvert</option><option value="diamond">Losange</option><option value="circle">Cercle</option><option value="none">Aucune</option></select></div>
+            <div class="modal-actions"><button id="btn-reset-axis">Réinitialiser</button><button id="btn-close-axis" class="primary">Fermer</button></div>
+        </div>
+    </div>
 
 <script>
-(function(){
-"use strict";
+    const PALETTE = { teal: '#3a7d76', burgundy: '#8c2b35', rust: '#b5451e', gold: '#c8922a', slate: '#4a5568', olive: '#5c6e2e', plum: '#6b3f5e', midnight: '#2c4a5e' };
+    const COLORS = Object.values(PALETTE);
+    const MONTHS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+    const MARGIN_X = 80; 
 
-/* ============================= CONSTANTS ============================= */
-const MARGIN_X = 60;
-const BAND_HEIGHT = 560;
-const AXIS_Y = 280;
-const BASE_PX_PER_YEAR = 40;
-const PALETTE = ['#3a7d76','#8c2b35','#b5451e','#c8922a','#4a5568','#5c6e2e','#6b3f5e','#2c4a5e'];
-const NICE_INTERVALS = [1,2,5,10,20,25,50,100,200,250,500,1000];
-const DRAG_THRESHOLD = 3;
+    let events = []; 
+    let currentId = 1;
+    let editingId = null;
+    let view = { minYear: 1900, maxYear: 2000, zoomLevel: 1, autoZoom: true, primaryScale: 'auto', secondaryScale: 'auto' };
+    let axisStyle = { width: 2, color: PALETTE.slate, dash: '', arrow: 'solid' };
+    let scaleMap = { mergedBreaks: [], pxPerYear: 0 };
 
-/* ============================= STATE ============================= */
-let state = {
-  title: "Frise chronologique",
-  student: { nom:'', prenom:'', classe:'' },
-  events: [], // {id,type,title,desc,img:{src,w,h}|null,start:{y,m,d},end:{y,m,d}|null,color,catName,position,align,offset}
-  axisStyle: { color:'#2c4a5e', width:3, dash:'solid', arrow:'solid' },
-  view: { yearMin:1800, yearMax:2000, zoom:1, autoFit:true },
-  scale: { primary:'auto', secondary:'auto' }
-};
-let nextId = 1;
-let editingId = null; // currently edited event id, null = new
-let currentImgData = null; // {src,w,h} staged in modal
+    const elTimeline = document.getElementById('timeline-canvas');
+    const elElementsLayer = document.getElementById('elements-layer');
+    const elScroll = document.getElementById('scroll-area');
+    const elEmpty = document.getElementById('empty-state');
+    const elCentralBand = document.getElementById('central-band');
+    
+    function init() { populateSwatches(); bindEvents(); updateUI(); }
 
-/* ============================= DOM REFS ============================= */
-const $ = (id)=>document.getElementById(id);
-const viewport = $('viewport');
-const canvas = $('canvas');
-const axisBand = $('axisBand');
-const axisSvg = $('axisSvg');
-const eventsLayer = $('eventsLayer');
-const emptyState = $('emptyState');
-const emptyBox = $('emptyBox');
-const counterNum = $('counterNum');
-const legendEl = $('legend');
-const titleEl = $('titleEl');
+    function isLeapYear(y) { return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0; }
+    function daysInYearOf(y) { return isLeapYear(y) ? 366 : 365; }
 
-/* ============================= DATE / SCALE HELPERS ============================= */
-function isLeap(y){ return (y%4===0 && y%100!==0) || y%400===0; }
-function daysInYear(y){ return isLeap(y)?366:365; }
-function dateToDecYear(d){
-  if(!d) return 0;
-  const y = d.y;
-  if(!d.m) return y;
-  const start = Date.UTC(y,0,1);
-  const cur = Date.UTC(y, (d.m||1)-1, d.d||1);
-  return y + (cur-start)/(daysInYear(y)*86400000);
-}
-function decYearToDate(dec){
-  const y = Math.floor(dec);
-  const frac = dec - y;
-  const start = Date.UTC(y,0,1);
-  const ms = frac*daysInYear(y)*86400000;
-  const dt = new Date(start+ms);
-  return { y: dt.getUTCFullYear(), m: dt.getUTCMonth()+1, d: dt.getUTCDate() };
-}
-function precisionOf(d){ return d.d ? 'day' : (d.m ? 'month' : 'year'); }
-function snapDecYear(dec, precision){
-  if(precision==='year'){
-    const y = Math.round(dec);
-    return { y, m:null, d:null };
-  } else if(precision==='month'){
-    const totalMonths = Math.round(dec*12);
-    const y = Math.floor(totalMonths/12);
-    const m = totalMonths - y*12 + 1;
-    return { y, m, d:null };
-  } else {
-    const dt = decYearToDate(dec);
-    return { y:dt.y, m:dt.m, d:dt.d };
-  }
-}
-function escapeHTML(str){
-  if(!str) return '';
-  return String(str).replace(/[&<>'"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-}
-function formatDate(d){
-  if(!d) return '';
-  const MOIS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-  if(d.d && d.m) return `${d.d} ${MOIS[d.m-1]} ${d.y}`;
-  if(d.m) return `${MOIS[d.m-1]} ${d.y}`;
-  return `${d.y}`;
-}
-
-/* ============================= COORDS (avec césures) ============================= */
-const BREAK_GAP_PX = 34;
-let currentBreaks = []; // recalculé à chaque render(): [{s,e}] années décimales, fusionnées et triées
-
-function computeBreaks(){
-  let raw = state.events.filter(e=>e.type==='cesure' && e.end && e.end.y!=null).map(e=>{
-    const s = dateToDecYear(e.start), en = dateToDecYear(e.end);
-    return { s: Math.min(s,en), e: Math.max(s,en) };
-  });
-  raw.sort((a,b)=>a.s-b.s);
-  const merged = [];
-  raw.forEach(b=>{
-    const last = merged[merged.length-1];
-    if(last && b.s <= last.e) last.e = Math.max(last.e, b.e);
-    else merged.push({s:b.s, e:b.e});
-  });
-  merged.forEach(b=>{
-    b.s = Math.max(b.s, state.view.yearMin);
-    b.e = Math.min(b.e, state.view.yearMax);
-  });
-  return merged.filter(b=>b.s < b.e);
-}
-function effPxPerYear(){ return BASE_PX_PER_YEAR * state.view.zoom; }
-function yearToX(dec){
-  let x = MARGIN_X, cursor = state.view.yearMin;
-  for(const b of currentBreaks){
-    if(dec<=b.s) return x + (dec-cursor)*effPxPerYear();
-    if(dec<=b.e) return x + (b.s-cursor)*effPxPerYear() + BREAK_GAP_PX/2;
-    x += (b.s-cursor)*effPxPerYear() + BREAK_GAP_PX;
-    cursor = b.e;
-  }
-  return x + (dec-cursor)*effPxPerYear();
-}
-function breakEdges(b){
-  const left = yearToX(b.s);
-  return { left, right: left+BREAK_GAP_PX };
-}
-function xToYear(px){
-  let x = MARGIN_X, cursor = state.view.yearMin;
-  for(const b of currentBreaks){
-    const widthBefore = (b.s-cursor)*effPxPerYear();
-    if(px<=x+widthBefore) return cursor + (px-x)/effPxPerYear();
-    x += widthBefore;
-    if(px<=x+BREAK_GAP_PX) return b.s;
-    x += BREAK_GAP_PX;
-    cursor = b.e;
-  }
-  return cursor + (px-x)/effPxPerYear();
-}
-function effectiveYearSpan(){
-  const skipped = currentBreaks.reduce((s,b)=>s+(b.e-b.s),0);
-  return Math.max(0.01, (state.view.yearMax-state.view.yearMin) - skipped);
-}
-function canvasTotalWidth(){
-  return Math.max(200, MARGIN_X*2 + effectiveYearSpan()*effPxPerYear() + currentBreaks.length*BREAK_GAP_PX);
-}
-
-/* ============================= SCALE INTERVALS ============================= */
-function autoInterval(minPxBetween){
-  const eff = effPxPerYear();
-  for(const iv of NICE_INTERVALS){ if(iv*eff >= minPxBetween) return iv; }
-  return NICE_INTERVALS[NICE_INTERVALS.length-1];
-}
-function computeIntervals(){
-  const prim = state.scale.primary==='auto' ? autoInterval(90) : Number(state.scale.primary);
-  let sec;
-  if(state.scale.secondary==='auto'){
-    sec = NICE_INTERVALS.slice().reverse().find(iv=>iv<prim && prim%iv===0) || Math.max(1, Math.round(prim/5));
-  } else {
-    sec = Number(state.scale.secondary);
-  }
-  return { prim, sec };
-}
-function populateScaleSelects(){
-  const opts = ['auto', ...NICE_INTERVALS];
-  [$('scalePrimary'), $('scaleSecondary')].forEach(sel=>{
-    sel.innerHTML = opts.map(o=>`<option value="${o}">${o==='auto'?'Auto':o+' an(s)'}</option>`).join('');
-  });
-  $('scalePrimary').value = state.scale.primary;
-  $('scaleSecondary').value = state.scale.secondary;
-}
-
-/* ============================= RENDER: AXIS ============================= */
-function dashArrayFor(type){
-  if(type==='dashed') return '10,6';
-  if(type==='dotted') return '2,4';
-  return 'none';
-}
-const ARROW_SHAPES = {
-  solid:   { d:'M0,0 L10,5 L0,10 z', fillMode:'fill' },
-  chevron: { d:'M1,1 L9,5 L1,9', fillMode:'stroke' },
-  diamond: { d:'M0,5 L5,0 L10,5 L5,10 z', fillMode:'fill' },
-  circle:  { d:null, fillMode:'circle' }
-};
-function buildArrowMarkers(svg, color){
-  const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
-  Object.entries(ARROW_SHAPES).forEach(([shape, cfg])=>{
-    const marker = document.createElementNS('http://www.w3.org/2000/svg','marker');
-    marker.setAttribute('id','arrow-'+shape);
-    marker.setAttribute('viewBox','0 0 10 10');
-    marker.setAttribute('refX','8'); marker.setAttribute('refY','5');
-    marker.setAttribute('markerWidth','8'); marker.setAttribute('markerHeight','8');
-    marker.setAttribute('orient','auto-start-reverse');
-    let shapeEl;
-    if(cfg.fillMode==='circle'){
-      shapeEl = document.createElementNS('http://www.w3.org/2000/svg','circle');
-      shapeEl.setAttribute('cx','5'); shapeEl.setAttribute('cy','5'); shapeEl.setAttribute('r','4');
-      shapeEl.setAttribute('fill', color);
-    } else {
-      shapeEl = document.createElementNS('http://www.w3.org/2000/svg','path');
-      shapeEl.setAttribute('d', cfg.d);
-      if(cfg.fillMode==='stroke'){
-        shapeEl.setAttribute('fill','none');
-        shapeEl.setAttribute('stroke', color);
-        shapeEl.setAttribute('stroke-width','2');
-        shapeEl.setAttribute('stroke-linecap','round');
-        shapeEl.setAttribute('stroke-linejoin','round');
-      } else {
-        shapeEl.setAttribute('fill', color);
-      }
-    }
-    marker.appendChild(shapeEl);
-    defs.appendChild(marker);
-  });
-  svg.appendChild(defs);
-}
-function renderAxis(){
-  const w = canvasTotalWidth();
-  axisSvg.setAttribute('width', w);
-  axisSvg.setAttribute('height', BAND_HEIGHT);
-  axisSvg.innerHTML = '';
-  axisBand.style.top = (AXIS_Y-160)+'px';
-  axisBand.style.height = '320px';
-  axisBand.style.width = w+'px';
-
-  const hasEvents = state.events.length>0;
-  const opacity = hasEvents ? 1 : 0.4;
-  axisSvg.style.opacity = opacity;
-
-  buildArrowMarkers(axisSvg, state.axisStyle.color);
-
-  let d = `M ${yearToX(state.view.yearMin)},${AXIS_Y}`;
-  currentBreaks.forEach(b=>{
-    const { left, right } = breakEdges(b);
-    d += ` L ${left},${AXIS_Y} M ${right},${AXIS_Y}`;
-  });
-  d += ` L ${yearToX(state.view.yearMax)},${AXIS_Y}`;
-  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-  path.setAttribute('d', d);
-  path.setAttribute('fill','none');
-  path.setAttribute('stroke', state.axisStyle.color);
-  path.setAttribute('stroke-width', state.axisStyle.width);
-  const da = dashArrayFor(state.axisStyle.dash);
-  if(da!=='none') path.setAttribute('stroke-dasharray', da);
-  if(state.axisStyle.arrow!=='none') path.setAttribute('marker-end','url(#arrow-'+state.axisStyle.arrow+')');
-  axisSvg.appendChild(path);
-
-  currentBreaks.forEach(b=>{
-    const { left, right } = breakEdges(b);
-    const mid = (left+right)/2;
-    [-6, 6].forEach(dx=>{
-      const mark = document.createElementNS('http://www.w3.org/2000/svg','line');
-      mark.setAttribute('x1', mid+dx-5); mark.setAttribute('y1', AXIS_Y+9);
-      mark.setAttribute('x2', mid+dx+5); mark.setAttribute('y2', AXIS_Y-9);
-      mark.setAttribute('stroke', state.axisStyle.color);
-      mark.setAttribute('stroke-width', state.axisStyle.width);
-      axisSvg.appendChild(mark);
-    });
-  });
-
-  const { prim, sec } = computeIntervals();
-  const insideBreak = (y)=> currentBreaks.some(b=> y>b.s && y<b.e);
-  // secondary ticks
-  if(sec>0){
-    const startSec = Math.ceil(state.view.yearMin/sec)*sec;
-    for(let y=startSec; y<=state.view.yearMax; y+=sec){
-      if(prim>0 && Math.abs(y % prim) < 1e-9) continue;
-      if(insideBreak(y)) continue;
-      const x = yearToX(y);
-      const t = document.createElementNS('http://www.w3.org/2000/svg','line');
-      t.setAttribute('x1',x); t.setAttribute('x2',x);
-      t.setAttribute('y1', AXIS_Y-6); t.setAttribute('y2', AXIS_Y+6);
-      t.setAttribute('stroke', state.axisStyle.color);
-      t.setAttribute('stroke-opacity','0.4');
-      t.setAttribute('stroke-width','1');
-      axisSvg.appendChild(t);
-    }
-  }
-  // primary ticks + labels
-  if(prim>0){
-    const startPrim = Math.ceil(state.view.yearMin/prim)*prim;
-    for(let y=startPrim; y<=state.view.yearMax; y+=prim){
-      if(insideBreak(y)) continue;
-      const x = yearToX(y);
-      const t = document.createElementNS('http://www.w3.org/2000/svg','line');
-      t.setAttribute('x1',x); t.setAttribute('x2',x);
-      t.setAttribute('y1', AXIS_Y-12); t.setAttribute('y2', AXIS_Y+12);
-      t.setAttribute('stroke', state.axisStyle.color);
-      t.setAttribute('stroke-width','2');
-      axisSvg.appendChild(t);
-
-      const label = document.createElementNS('http://www.w3.org/2000/svg','text');
-      label.setAttribute('x', x); label.setAttribute('y', AXIS_Y+28);
-      label.setAttribute('text-anchor','middle');
-      label.setAttribute('font-family',"'Source Sans 3', sans-serif");
-      label.setAttribute('font-weight','600');
-      label.setAttribute('font-size','13');
-      label.setAttribute('fill', state.axisStyle.color);
-      label.setAttribute('stroke','white');
-      label.setAttribute('stroke-width','3');
-      label.setAttribute('paint-order','stroke');
-      label.textContent = y;
-      axisSvg.appendChild(label);
-    }
-  }
-}
-
-function renderBreakHitboxes(){
-  document.querySelectorAll('.tl-break-hit').forEach(el=>el.remove());
-  currentBreaks.forEach(b=>{
-    const { left, right } = breakEdges(b);
-    const hit = document.createElement('div');
-    hit.className = 'tl-break-hit';
-    hit.style.left = (left-6)+'px';
-    hit.style.width = ((right-left)+12)+'px';
-    hit.style.top = (AXIS_Y-20)+'px';
-    hit.style.height = '40px';
-    hit.title = 'Césure : double-cliquez pour modifier';
-    hit.addEventListener('dblclick', (e)=>{
-      e.stopPropagation();
-      const match = state.events.find(ev=>ev.type==='cesure' && ev.end &&
-        Math.min(dateToDecYear(ev.start),dateToDecYear(ev.end))<=b.e &&
-        Math.max(dateToDecYear(ev.start),dateToDecYear(ev.end))>=b.s);
-      if(match) openEditModal(match.id);
-    });
-    eventsLayer.appendChild(hit);
-  });
-}
-
-/* ============================= RENDER: EVENTS ============================= */
-let dragState = null; // active drag info
-
-function categoryList(){
-  const map = new Map();
-  state.events.forEach(ev=>{
-    if(ev.type==='cesure') return;
-    const key = ev.catName+'|'+ev.color;
-    if(!map.has(key)) map.set(key, {name:ev.catName||'Sans catégorie', color:ev.color});
-  });
-  return [...map.values()];
-}
-
-function renderLegend(){
-  const cats = categoryList();
-  legendEl.innerHTML = cats.map(c=>`<span class="item"><span class="sw" style="background:${c.color}"></span>${escapeHTML(c.name)}</span>`).join('') || '<span style="color:var(--ardoise)">Aucune catégorie</span>';
-}
-
-function renderEvents(){
-  eventsLayer.innerHTML = '';
-  eventsLayer.style.width = canvasTotalWidth()+'px';
-  eventsLayer.style.height = BAND_HEIGHT+'px';
-
-  let autoCounter = 0;
-  state.events.forEach((ev)=>{
-    if(ev.type==='cesure') return;
-    const startDec = dateToDecYear(ev.start);
-
-    if(ev.type==='period' && ev.end){
-      const endDec = dateToDecYear(ev.end);
-      const x1 = yearToX(startDec), x2 = yearToX(endDec);
-      const band = document.createElement('div');
-      band.className = 'tl-period-band';
-      band.style.left = Math.min(x1,x2)+'px';
-      band.style.top = (AXIS_Y-100)+'px';
-      band.style.width = Math.abs(x2-x1)+'px';
-      band.style.height = '200px';
-      band.style.background = ev.color;
-      eventsLayer.appendChild(band);
+    // Année décimale calculée à partir de la vraie date calendaire (tient compte des mois de longueur variable et des années bissextiles).
+    function getFractionalYear(y, m, d) {
+        y = parseInt(y) || 0;
+        if (!(m && !isNaN(parseInt(m)))) return y;
+        const mm = parseInt(m);
+        const dd = (d && !isNaN(parseInt(d))) ? parseInt(d) : 1;
+        const start = Date.UTC(y, 0, 1);
+        const cur = Date.UTC(y, mm - 1, dd);
+        return y + (cur - start) / (daysInYearOf(y) * 86400000);
     }
 
-    const x = yearToX(startDec);
-    const pointHit = document.createElement('div');
-    pointHit.className = 'tl-point-hit';
-    pointHit.style.left=(x-13)+'px'; pointHit.style.top=(AXIS_Y-13)+'px';
-    const point = document.createElement('div');
-    point.className = 'tl-point';
-    point.style.width='11px'; point.style.height='11px';
-    point.style.left='7.5px'; point.style.top='7.5px';
-    point.style.background = ev.color;
-    pointHit.appendChild(point);
-    eventsLayer.appendChild(pointHit);
-
-    let position = ev.position;
-    if(position==='auto'){ position = (autoCounter%2===0)?'top':'bottom'; autoCounter++; }
-    const offset = ev.offset!=null ? ev.offset : 90;
-    const cardTop = position==='top' ? (AXIS_Y - offset - 10) : (AXIS_Y + offset - 10);
-    // leader line
-    const leader = document.createElement('div');
-    leader.className = 'tl-leader';
-    leader.style.left = x+'px';
-    leader.style.borderLeftColor = ev.color;
-    if(position==='top'){
-      leader.style.top = (AXIS_Y-offset)+'px';
-      leader.style.height = (offset)+'px';
-    } else {
-      leader.style.top = AXIS_Y+'px';
-      leader.style.height = (offset)+'px';
+    // Inverse de getFractionalYear : reconstruit une date calendaire réelle à partir d'une année décimale.
+    function decYearToCalendarDate(dec) {
+        const y = Math.floor(dec);
+        const frac = dec - y;
+        const startMs = Date.UTC(y, 0, 1);
+        const ms = frac * daysInYearOf(y) * 86400000;
+        const dt = new Date(startMs + ms);
+        return { y: dt.getUTCFullYear(), m: dt.getUTCMonth() + 1, d: dt.getUTCDate() };
     }
-    eventsLayer.appendChild(leader);
 
-    const card = document.createElement('div');
-    card.className = 'tl-card';
-    card.style.borderTopColor = ev.color;
-    card.dataset.id = ev.id;
-    let cardLeft;
-    if(ev.align==='left') cardLeft = x;
-    else if(ev.align==='right') cardLeft = x - 190;
-    else cardLeft = x - 95;
-    card.style.left = cardLeft+'px';
-    if(position==='top') card.style.top = (AXIS_Y-offset-10)+'px'; else card.style.top=(AXIS_Y+offset-10)+'px';
-    if(position==='top') card.style.transform = 'translateY(-100%)';
-
-    let imgHtml = '';
-    if(ev.img && ev.img.src){
-      const w = ev.img.w||170, h = ev.img.h||100;
-      imgHtml = `<div class="img-wrap" style="width:${w}px;height:${h}px;"><img src="${ev.img.src}" style="width:${w}px;height:${h}px;object-fit:cover;"><div class="img-resize-handle" data-role="imgresize"></div></div>`;
+    function formatDate(obj) {
+        if(!obj || !obj.y) return "";
+        let res = "";
+        if(obj.d) res += obj.d + " ";
+        if(obj.m) res += MONTHS[parseInt(obj.m)-1] + " ";
+        res += obj.y;
+        return res;
     }
-    const dateTxt = formatDate(ev.start)+(ev.type==='period'&&ev.end?' – '+formatDate(ev.end):'');
-    card.innerHTML = `
-      <div class="edit-icon">✎</div>
-      ${ev.catName?`<div class="cat">${escapeHTML(ev.catName)}</div>`:''}
-      ${imgHtml}
-      <div class="date">${escapeHTML(dateTxt)}</div>
-      <div class="ttl">${escapeHTML(ev.title)||'(sans titre)'}</div>
-      <div class="desc">${escapeHTML(ev.desc)}</div>
-    `;
-    eventsLayer.appendChild(card);
 
-    attachCardInteractions(card, ev, pointHit, position, dateTxt);
-  });
+    function computeScale() {
+        let breaks = events.filter(e => e.type === 'cesure' && e.end && e.end.y).map(e => {
+            let s = getFractionalYear(e.start.y, e.start.m, e.start.d);
+            let endFrac = getFractionalYear(e.end.y, e.end.m, e.end.d);
+            return { s: Math.min(s, endFrac), e: Math.max(s, endFrac), ids: [e.id] };
+        });
+        
+        breaks.sort((a,b) => a.s - b.s);
+        let merged = [];
+        if(breaks.length > 0) {
+            let curr = {s: breaks[0].s, e: breaks[0].e, ids: [...breaks[0].ids]};
+            for(let i=1; i<breaks.length; i++) {
+                if(breaks[i].s <= curr.e) {
+                    curr.e = Math.max(curr.e, breaks[i].e);
+                    curr.ids.push(breaks[i].ids[0]);
+                } else {
+                    merged.push(curr);
+                    curr = {s: breaks[i].s, e: breaks[i].e, ids: [...breaks[i].ids]};
+                }
+            }
+            merged.push(curr);
+        }
+        
+        merged.forEach(b => {
+            b.s = Math.max(b.s, view.minYear);
+            b.e = Math.min(b.e, view.maxYear);
+        });
+        scaleMap.mergedBreaks = merged.filter(b => b.s < b.e);
 
-  renderLegend();
-}
-
-function attachCardInteractions(card, ev, pointHitEl, position, dateTxt){
-  card.addEventListener('dblclick', (e)=>{
-    e.stopPropagation();
-    openEditModal(ev.id);
-  });
-  pointHitEl.addEventListener('dblclick', (e)=>{
-    e.stopPropagation();
-    openEditModal(ev.id);
-  });
-
-  const imgHandle = card.querySelector('[data-role=imgresize]');
-  if(imgHandle){
-    imgHandle.addEventListener('mousedown',(e)=>{
-      e.stopPropagation(); e.preventDefault();
-      const img = ev.img;
-      dragState = { mode:'imgresize', ev, startX:e.clientX, startY:e.clientY, startW: img.w||170, startH: img.h||100 };
-    });
-  }
-
-  card.addEventListener('mousedown',(e)=>{
-    if(e.target.dataset && e.target.dataset.role==='imgresize') return;
-    e.stopPropagation();
-    dragState = {
-      mode:'pending', ev, startX:e.clientX, startY:e.clientY,
-      startOffset: ev.offset!=null?ev.offset:90,
-      startDec: dateToDecYear(ev.start),
-      startEndDec: ev.end?dateToDecYear(ev.end):null,
-      position
-    };
-  });
-
-  [card, pointHitEl].forEach(el=>{
-    el.addEventListener('mouseenter', (e)=> showTooltip(ev, dateTxt, e));
-    el.addEventListener('mousemove', (e)=> positionTooltip(e));
-    el.addEventListener('mouseleave', hideTooltip);
-  });
-}
-
-const tooltipEl = document.getElementById('tooltip');
-function showTooltip(ev, dateTxt, e){
-  if(dragState) return;
-  let html = '';
-  if(ev.img && ev.img.src) html += `<img src="${ev.img.src}">`;
-  html += `<div class="tt-date">${escapeHTML(dateTxt)}</div>`;
-  html += `<div class="tt-title">${escapeHTML(ev.title)||'(sans titre)'}</div>`;
-  if(ev.desc) html += `<div class="tt-desc">${escapeHTML(ev.desc)}</div>`;
-  tooltipEl.innerHTML = html;
-  tooltipEl.classList.add('show');
-  positionTooltip(e);
-}
-function positionTooltip(e){
-  if(!tooltipEl.classList.contains('show')) return;
-  let x = e.clientX+16, y = e.clientY+16;
-  const tw = 230, th = tooltipEl.offsetHeight || 100;
-  if(x+tw > window.innerWidth) x = e.clientX-tw-16;
-  if(y+th > window.innerHeight) y = e.clientY-th-16;
-  tooltipEl.style.left = x+'px';
-  tooltipEl.style.top = y+'px';
-}
-function hideTooltip(){ tooltipEl.classList.remove('show'); }
-
-/* ============================= GLOBAL DRAG HANDLING ============================= */
-document.addEventListener('mousemove',(e)=>{
-  if(!dragState) return;
-  const dx = e.clientX - dragState.startX;
-  const dy = e.clientY - dragState.startY;
-
-  if(dragState.mode==='pending'){
-    if(Math.abs(dx)>DRAG_THRESHOLD || Math.abs(dy)>DRAG_THRESHOLD){
-      dragState.mode = Math.abs(dx)>Math.abs(dy) ? 'horizontal' : 'vertical';
-    } else return;
-  }
-
-  if(dragState.mode==='horizontal'){
-    const deltaYears = dx / effPxPerYear();
-    const precision = precisionOf(dragState.ev.start);
-    const newStart = snapDecYear(dragState.startDec + deltaYears, precision);
-    dragState.ev.start = newStart;
-    if(dragState.ev.type==='period' && dragState.startEndDec!=null){
-      const endPrecision = precisionOf(dragState.ev.end);
-      const newEnd = snapDecYear(dragState.startEndDec + deltaYears, endPrecision);
-      dragState.ev.end = newEnd;
+        const widthPx = elTimeline.offsetWidth;
+        const innerWidth = widthPx - (MARGIN_X * 2);
+        
+        let totalSkipped = scaleMap.mergedBreaks.reduce((sum, b) => sum + (b.e - b.s), 0);
+        let effectiveYears = (view.maxYear - view.minYear) - totalSkipped;
+        if (effectiveYears <= 0) effectiveYears = 1; 
+        
+        let totalBreakWidth = scaleMap.mergedBreaks.length * 30; 
+        let availableWidth = innerWidth - totalBreakWidth;
+        if (availableWidth < 10) availableWidth = 10;
+        
+        scaleMap.pxPerYear = availableWidth / effectiveYears;
     }
-    scheduleRender();
-  } else if(dragState.mode==='vertical'){
-    let delta = dragState.position==='top' ? -dy : dy;
-    let newOffset = Math.max(30, dragState.startOffset + delta);
-    dragState.ev.offset = newOffset;
-    scheduleRender();
-  } else if(dragState.mode==='imgresize'){
-    const newW = Math.max(40, dragState.startW + dx);
-    const newH = Math.max(30, dragState.startH + dy);
-    dragState.ev.img.w = newW;
-    dragState.ev.img.h = newH;
-    scheduleRender();
-  } else if(dragState.mode==='pan'){
-    viewport.scrollLeft = dragState.startScroll - dx;
-  }
-});
-document.addEventListener('mouseup',()=>{
-  if(dragState && dragState.mode!=='pending'){
-    if(dragState.mode!=='pan') triggerAutoFitAndRender();
-  }
-  if(dragState && dragState.mode==='pan') viewport.classList.remove('panning');
-  dragState = null;
-});
 
-/* background panning */
-canvas.addEventListener('mousedown',(e)=>{
-  if(e.target!==canvas && e.target!==axisBand && e.target!==eventsLayer && e.target!==emptyState) return;
-  dragState = { mode:'pan', startX:e.clientX, startScroll: viewport.scrollLeft };
-  viewport.classList.add('panning');
-});
-canvas.addEventListener('dblclick',(e)=>{
-  if(e.target!==canvas && e.target!==axisBand && e.target!==eventsLayer) return;
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left + viewport.scrollLeft;
-  const year = Math.round(xToYear(x));
-  openEditModal(null, year);
-});
-emptyBox.addEventListener('click', ()=>{
-  const mid = Math.round((state.view.yearMin+state.view.yearMax)/2);
-  openEditModal(null, mid);
-});
-
-let renderScheduled = false;
-function scheduleRender(){
-  if(renderScheduled) return;
-  renderScheduled = true;
-  requestAnimationFrame(()=>{ renderScheduled=false; render(false); });
-}
-
-/* ============================= FULL RENDER ============================= */
-function render(recomputeFit){
-  if(recomputeFit===undefined) recomputeFit=true;
-  currentBreaks = computeBreaks();
-  if(recomputeFit && state.view.autoFit) computeFitZoom();
-  state.events.sort((a,b)=> dateToDecYear(a.start)-dateToDecYear(b.start));
-  canvas.style.width = canvasTotalWidth()+'px';
-  renderAxis();
-  renderEvents();
-  renderBreakHitboxes();
-  const contentEvents = state.events.filter(e=>e.type!=='cesure');
-  counterNum.textContent = contentEvents.length;
-  emptyState.style.display = contentEvents.length? 'none':'flex';
-}
-function triggerAutoFitAndRender(){ render(true); }
-
-function computeFitZoom(){
-  const vw = viewport.clientWidth || 1000;
-  const span = state.view.yearMax - state.view.yearMin;
-  if(span<=0) return;
-  const skipped = currentBreaks.reduce((s,b)=>s+(b.e-b.s),0);
-  const effSpan = Math.max(0.01, span - skipped);
-  const avail = vw - MARGIN_X*2 - currentBreaks.length*BREAK_GAP_PX;
-  state.view.zoom = Math.max(0.02, avail/(effSpan*BASE_PX_PER_YEAR));
-}
-
-window.addEventListener('resize', ()=>{ if(state.view.autoFit) render(true); });
-
-/* ============================= TOOLBAR HANDLERS ============================= */
-$('yearFrom').value = state.view.yearMin;
-$('yearTo').value = state.view.yearMax;
-$('btnApplyRange').addEventListener('click', ()=>{
-  const from = parseInt($('yearFrom').value,10);
-  const to = parseInt($('yearTo').value,10);
-  if(!isNaN(from) && !isNaN(to) && to>from){
-    state.view.yearMin=from; state.view.yearMax=to;
-    render(true);
-  }
-});
-$('btnZoomIn').addEventListener('click', ()=>{ state.view.autoFit=false; state.view.zoom*=1.25; render(false); });
-$('btnZoomOut').addEventListener('click', ()=>{ state.view.autoFit=false; state.view.zoom=Math.max(0.02,state.view.zoom/1.25); render(false); });
-$('btnFit').addEventListener('click', ()=>{ state.view.autoFit=true; render(true); });
-
-populateScaleSelects();
-$('scalePrimary').addEventListener('change', e=>{ state.scale.primary=e.target.value; render(false); });
-$('scaleSecondary').addEventListener('change', e=>{ state.scale.secondary=e.target.value; render(false); });
-
-titleEl.textContent = state.title;
-titleEl.addEventListener('input', ()=>{ state.title = titleEl.textContent; });
-$('stuNom').addEventListener('input', e=> state.student.nom = e.target.value);
-$('stuPrenom').addEventListener('input', e=> state.student.prenom = e.target.value);
-$('stuClasse').addEventListener('input', e=> state.student.classe = e.target.value);
-
-$('btnAdd').addEventListener('click', ()=>{
-  const mid = Math.round((state.view.yearMin+state.view.yearMax)/2);
-  openEditModal(null, mid);
-});
-
-/* ============================= AXIS STYLE MODAL ============================= */
-const axisModalOverlay = $('axisModalOverlay');
-$('btnAxisStyle').addEventListener('click', ()=>{
-  $('axStrokeWidth').value = state.axisStyle.width;
-  $('axColor').value = state.axisStyle.color;
-  $('axDash').value = state.axisStyle.dash;
-  $('axArrow').value = state.axisStyle.arrow;
-  renderAxisPreview();
-  axisModalOverlay.classList.add('show');
-});
-$('btnCloseAxis').addEventListener('click', ()=> axisModalOverlay.classList.remove('show'));
-['axStrokeWidth','axColor','axDash','axArrow'].forEach(id=>{
-  $(id).addEventListener('input', ()=>{
-    state.axisStyle.width = parseInt($('axStrokeWidth').value,10);
-    state.axisStyle.color = $('axColor').value;
-    state.axisStyle.dash = $('axDash').value;
-    state.axisStyle.arrow = $('axArrow').value;
-    renderAxisPreview();
-    render(false);
-  });
-});
-function renderAxisPreview(){
-  const svg = $('axisPreviewSvg');
-  svg.innerHTML='';
-  buildArrowMarkers(svg, state.axisStyle.color);
-  const line = document.createElementNS('http://www.w3.org/2000/svg','line');
-  line.setAttribute('x1','5%'); line.setAttribute('x2','95%');
-  line.setAttribute('y1','30'); line.setAttribute('y2','30');
-  line.setAttribute('stroke', state.axisStyle.color);
-  line.setAttribute('stroke-width', state.axisStyle.width);
-  const da = dashArrayFor(state.axisStyle.dash);
-  if(da!=='none') line.setAttribute('stroke-dasharray', da);
-  if(state.axisStyle.arrow!=='none') line.setAttribute('marker-end','url(#arrow-'+state.axisStyle.arrow+')');
-  svg.appendChild(line);
-}
-
-/* ============================= EDIT MODAL ============================= */
-const editOverlay = $('editModalOverlay');
-const fSwatches = $('fSwatches');
-PALETTE.forEach(c=>{
-  const sw = document.createElement('div');
-  sw.className='swatch'; sw.style.background=c; sw.dataset.color=c;
-  sw.addEventListener('click', ()=>{
-    [...fSwatches.children].forEach(ch=>ch.classList.remove('selected'));
-    sw.classList.add('selected');
-  });
-  fSwatches.appendChild(sw);
-});
-function selectSwatch(color){
-  [...fSwatches.children].forEach(ch=>ch.classList.toggle('selected', ch.dataset.color===color));
-}
-$('fType').addEventListener('change', ()=>{
-  const t = $('fType').value;
-  $('fEndWrap').style.display = (t==='period'||t==='cesure') ? 'flex':'none';
-  $('fCesureHint').style.display = t==='cesure' ? 'block':'none';
-  $('fContentFields').style.display = t==='cesure' ? 'none':'block';
-  $('fTitleWrap').style.display = t==='cesure' ? 'none':'block';
-  $('fCatNameWrap').style.display = t==='cesure' ? 'none':'block';
-});
-
-function resetEditForm(){
-  $('fType').value='event'; $('fEndWrap').style.display='none';
-  $('fCesureHint').style.display='none';
-  $('fContentFields').style.display='block';
-  $('fTitleWrap').style.display='block';
-  $('fCatNameWrap').style.display='block';
-  $('fCatName').value=''; $('fTitle').value=''; $('fDesc').value='';
-  $('fStartD').value=''; $('fStartM').value=''; $('fStartY').value='';
-  $('fEndD').value=''; $('fEndM').value=''; $('fEndY').value='';
-  $('fPosition').value='auto'; $('fAlign').value='center';
-  currentImgData = null;
-  $('fImgPreview').style.display='none';
-  $('fDropZone').style.display='block';
-  selectSwatch(PALETTE[0]);
-  $('btnDeleteEvent').style.display='none';
-}
-
-function openEditModal(id, prefillYear){
-  resetEditForm();
-  editingId = id;
-  if(id!=null){
-    const ev = state.events.find(e=>e.id===id);
-    $('editModalTitle').textContent = 'Modifier l\'événement';
-    $('fType').value = ev.type;
-    $('fType').dispatchEvent(new Event('change'));
-    $('fCatName').value = ev.catName||'';
-    $('fTitle').value = ev.title||'';
-    $('fDesc').value = ev.desc||'';
-    $('fStartD').value = ev.start.d||''; $('fStartM').value = ev.start.m||''; $('fStartY').value = ev.start.y;
-    if(ev.end){ $('fEndD').value = ev.end.d||''; $('fEndM').value = ev.end.m||''; $('fEndY').value = ev.end.y; }
-    $('fPosition').value = ev.position||'auto';
-    $('fAlign').value = ev.align||'center';
-    selectSwatch(ev.color);
-    if(ev.img && ev.img.src){
-      currentImgData = { src:ev.img.src, w:ev.img.w, h:ev.img.h };
-      $('fImgPreview').src = ev.img.src; $('fImgPreview').style.display='block';
-      $('fDropZone').style.display='none';
+    function getCanvasX(year) {
+        if (year <= view.minYear) return MARGIN_X;
+        let x = MARGIN_X;
+        let currentY = view.minYear;
+        
+        for (let b of scaleMap.mergedBreaks) {
+            if (year <= b.s) {
+                return x + (year - currentY) * scaleMap.pxPerYear;
+            } else if (year <= b.e) {
+                return x + (b.s - currentY) * scaleMap.pxPerYear + 15; 
+            } else {
+                x += (b.s - currentY) * scaleMap.pxPerYear + 30;
+                currentY = b.e;
+            }
+        }
+        let finalX = x + (year - currentY) * scaleMap.pxPerYear;
+        return isNaN(finalX) || !isFinite(finalX) ? MARGIN_X : finalX;
     }
-    $('btnDeleteEvent').style.display='inline-block';
-  } else {
-    $('editModalTitle').textContent = 'Ajouter un événement';
-    if(prefillYear!=null) $('fStartY').value = prefillYear;
-  }
-  editOverlay.classList.add('show');
-}
-$('btnCancelEdit').addEventListener('click', ()=> editOverlay.classList.remove('show'));
 
-/* image upload / drag-drop */
-const dropZone = $('fDropZone');
-dropZone.addEventListener('click', ()=> $('fImgFile').click());
-$('fImgFile').addEventListener('change', e=>{ if(e.target.files[0]) handleImageFile(e.target.files[0]); });
-dropZone.addEventListener('dragover', e=>{ e.preventDefault(); dropZone.classList.add('drag'); });
-dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('drag'));
-dropZone.addEventListener('drop', e=>{
-  e.preventDefault(); dropZone.classList.remove('drag');
-  if(e.dataTransfer.files[0]) handleImageFile(e.dataTransfer.files[0]);
-});
-function handleImageFile(file){
-  const reader = new FileReader();
-  reader.onload = e=>{
-    const img = new Image();
-    img.onload = ()=>{
-      let w = img.naturalWidth, h = img.naturalHeight;
-      const maxW = 170;
-      if(w>maxW){ h = h*(maxW/w); w = maxW; }
-      currentImgData = { src:e.target.result, w:Math.round(w), h:Math.round(h) };
-      $('fImgPreview').src = e.target.result;
-      $('fImgPreview').style.display='block';
-      dropZone.style.display='none';
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-$('btnSaveEvent').addEventListener('click', ()=>{
-  const type = $('fType').value;
-  const sy = parseInt($('fStartY').value,10);
-  if(isNaN(sy)){ alert('Année de début requise'); return; }
-  const sm = parseInt($('fStartM').value,10) || null;
-  const sd = parseInt($('fStartD').value,10) || null;
-  let end = null;
-  if(type==='period' || type==='cesure'){
-    const ey = parseInt($('fEndY').value,10);
-    if(isNaN(ey)){ alert('Année de fin requise pour ce type d\'élément'); return; }
-    const em = parseInt($('fEndM').value,10) || null;
-    const ed = parseInt($('fEndD').value,10) || null;
-    end = { y:ey, m:em, d:ed };
-    if(type==='cesure' && dateToDecYear(end)<=dateToDecYear({y:sy,m:sm,d:sd})){
-      alert('La date de fin doit être postérieure à la date de début'); return;
+    function getYearFromX(targetX) {
+        if (targetX <= MARGIN_X) return view.minYear;
+        let x = MARGIN_X;
+        let currentY = view.minYear;
+        
+        for (let b of scaleMap.mergedBreaks) {
+            let widthBefore = (b.s - currentY) * scaleMap.pxPerYear;
+            if (targetX <= x + widthBefore) {
+                return currentY + (targetX - x) / scaleMap.pxPerYear;
+            }
+            x += widthBefore;
+            if (targetX <= x + 30) {
+                return b.s; 
+            }
+            x += 30;
+            currentY = b.e;
+        }
+        return currentY + (targetX - x) / scaleMap.pxPerYear;
     }
-  }
-  const selectedSwatch = fSwatches.querySelector('.swatch.selected');
-  const color = selectedSwatch ? selectedSwatch.dataset.color : PALETTE[0];
 
-  const data = {
-    type,
-    title: type==='cesure' ? (($('fTitle').value)||'Césure') : $('fTitle').value,
-    desc: $('fDesc').value,
-    catName: $('fCatName').value,
-    start: { y:sy, m: sd?sm:(sm||null), d: sd },
-    end,
-    color,
-    position: $('fPosition').value,
-    align: $('fAlign').value,
-    img: currentImgData
-  };
-
-  if(editingId!=null){
-    const ev = state.events.find(e=>e.id===editingId);
-    Object.assign(ev, data);
-  } else {
-    state.events.push(Object.assign({ id: nextId++, offset:90 }, data));
-  }
-  editOverlay.classList.remove('show');
-  render(true);
-});
-
-$('btnDeleteEvent').addEventListener('click', ()=>{
-  if(editingId!=null){
-    state.events = state.events.filter(e=>e.id!==editingId);
-    editOverlay.classList.remove('show');
-    render(true);
-  }
-});
-
-/* ============================= SAVE / OPEN JSON ============================= */
-$('btnSave').addEventListener('click', ()=>{
-  const data = {
-    title: state.title, student: state.student, events: state.events,
-    axisStyle: state.axisStyle, view: state.view, scale: state.scale
-  };
-  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = (state.title||'frise').replace(/[^\w\-]+/g,'_')+'.json';
-  document.body.appendChild(a); a.click(); a.remove();
-});
-$('btnOpen').addEventListener('click', ()=> $('fileOpen').click());
-$('fileOpen').addEventListener('change', e=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = ev=>{
-    try{
-      const data = JSON.parse(ev.target.result);
-      state.title = data.title || state.title;
-      state.student = data.student || state.student;
-      state.events = data.events || [];
-      state.axisStyle = data.axisStyle || state.axisStyle;
-      state.view = data.view || state.view;
-      state.scale = data.scale || state.scale;
-      nextId = Math.max(1, ...state.events.map(e=>e.id||0))+1;
-      titleEl.textContent = state.title;
-      $('stuNom').value = state.student.nom||'';
-      $('stuPrenom').value = state.student.prenom||'';
-      $('stuClasse').value = state.student.classe||'';
-      $('yearFrom').value = state.view.yearMin;
-      $('yearTo').value = state.view.yearMax;
-      populateScaleSelects();
-      render(true);
-    }catch(err){ alert('Fichier JSON invalide: '+err.message); }
-  };
-  reader.readAsText(file);
-  e.target.value = '';
-});
-
-/* ============================= EXPORT (CANVAS) ============================= */
-function wrapText(ctx, text, maxWidth){
-  const words = (text||'').split(/\s+/);
-  const lines = [];
-  let cur = '';
-  words.forEach(word=>{
-    const test = cur ? cur+' '+word : word;
-    if(ctx.measureText(test).width > maxWidth && cur){ lines.push(cur); cur = word; }
-    else cur = test;
-  });
-  if(cur) lines.push(cur);
-  return lines;
-}
-
-async function loadImage(src){
-  return new Promise((resolve)=>{
-    const img = new Image();
-    img.onload = ()=>resolve(img);
-    img.onerror = ()=>resolve(null);
-    img.src = src;
-  });
-}
-
-async function generateExportCanvas(){
-  const RATIO = 2;
-  const headerH = 140;
-  const totalW = canvasTotalWidth();
-  const totalH = headerH + BAND_HEIGHT;
-  const cvs = $('exportCanvas');
-  cvs.width = totalW*RATIO; cvs.height = totalH*RATIO;
-  const ctx = cvs.getContext('2d');
-  ctx.scale(RATIO, RATIO);
-  ctx.fillStyle = '#fdfcfa';
-  ctx.fillRect(0,0,totalW,totalH);
-
-  // logo
-  const logoImg = await loadImage($('logoImg').src);
-  if(logoImg){
-    const lh = 60, lw = logoImg.naturalWidth*(lh/logoImg.naturalHeight);
-    ctx.drawImage(logoImg, 20, 20, lw, lh);
-  }
-  // title
-  ctx.fillStyle = '#2b2a28';
-  ctx.font = '700 28px Lora, serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(state.title, totalW/2, 45);
-  // student
-  ctx.font = '400 14px "Source Sans 3", sans-serif';
-  ctx.fillStyle = '#4a5568';
-  const stu = [state.student.nom, state.student.prenom, state.student.classe].filter(Boolean).join('   —   ');
-  if(stu) ctx.fillText(stu, totalW/2, 70);
-  ctx.textAlign = 'left';
-
-  // band
-  ctx.fillStyle = '#f4f1ec';
-  ctx.fillRect(0, headerH+AXIS_Y-160, totalW, 320);
-
-  const oy = headerH; // vertical offset applied to all timeline-space y coords
-
-  // period bands
-  state.events.forEach(ev=>{
-    if(ev.type==='period' && ev.end){
-      const x1 = yearToX(dateToDecYear(ev.start));
-      const x2 = yearToX(dateToDecYear(ev.end));
-      ctx.globalAlpha = 0.22;
-      ctx.fillStyle = ev.color;
-      ctx.fillRect(Math.min(x1,x2), oy+AXIS_Y-100, Math.abs(x2-x1), 200);
-      ctx.globalAlpha = 1;
+    // Applique une nouvelle année décimale à une date en respectant sa précision d'origine (année / mois / jour),
+    // via de vraies dates calendaires (plus d'approximation à 30,416 jours par mois).
+    function applyFracToDate(dateObj, frac) {
+        const hasDay = !!dateObj.d;
+        const hasMonth = !!dateObj.m;
+        if (!hasMonth && !hasDay) {
+            dateObj.y = Math.round(frac);
+            return;
+        }
+        const cal = decYearToCalendarDate(frac);
+        dateObj.y = cal.y;
+        dateObj.m = cal.m;
+        if (hasDay) dateObj.d = cal.d;
     }
-  });
 
-  // axis line (avec césures)
-  const x1 = yearToX(state.view.yearMin), x2 = yearToX(state.view.yearMax);
-  ctx.strokeStyle = state.axisStyle.color;
-  ctx.lineWidth = state.axisStyle.width;
-  ctx.setLineDash(state.axisStyle.dash==='dashed'?[10,6]:state.axisStyle.dash==='dotted'?[2,4]:[]);
-  ctx.beginPath();
-  ctx.moveTo(x1, oy+AXIS_Y);
-  currentBreaks.forEach(b=>{
-    const { left, right } = breakEdges(b);
-    ctx.lineTo(left, oy+AXIS_Y);
-    ctx.moveTo(right, oy+AXIS_Y);
-  });
-  ctx.lineTo(x2, oy+AXIS_Y);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  if(state.axisStyle.arrow!=='none') drawArrowHead(ctx, x2, oy+AXIS_Y, 1, state.axisStyle.color, state.axisStyle.arrow);
-
-  currentBreaks.forEach(b=>{
-    const { left, right } = breakEdges(b);
-    const mid = (left+right)/2;
-    ctx.lineWidth = state.axisStyle.width;
-    [-6,6].forEach(dx=>{
-      ctx.beginPath();
-      ctx.moveTo(mid+dx-5, oy+AXIS_Y+9);
-      ctx.lineTo(mid+dx+5, oy+AXIS_Y-9);
-      ctx.stroke();
-    });
-  });
-
-  // ticks
-  const { prim, sec } = computeIntervals();
-  const insideBreakExp = (y)=> currentBreaks.some(b=> y>b.s && y<b.e);
-  if(sec>0){
-    const startSec = Math.ceil(state.view.yearMin/sec)*sec;
-    ctx.strokeStyle = state.axisStyle.color;
-    ctx.globalAlpha = 0.4;
-    for(let y=startSec; y<=state.view.yearMax; y+=sec){
-      if(prim>0 && Math.abs(y%prim)<1e-9) continue;
-      if(insideBreakExp(y)) continue;
-      const x = yearToX(y);
-      ctx.lineWidth=1;
-      ctx.beginPath(); ctx.moveTo(x, oy+AXIS_Y-6); ctx.lineTo(x, oy+AXIS_Y+6); ctx.stroke();
+    function applyFracToEvent(ev, newFrac, durationFrac) {
+        applyFracToDate(ev.start, newFrac);
+        if (ev.type === 'period' && ev.end.y) {
+            applyFracToDate(ev.end, newFrac + durationFrac);
+        }
     }
-    ctx.globalAlpha = 1;
-  }
-  if(prim>0){
-    const startPrim = Math.ceil(state.view.yearMin/prim)*prim;
-    for(let y=startPrim; y<=state.view.yearMax; y+=prim){
-      if(insideBreakExp(y)) continue;
-      const x = yearToX(y);
-      ctx.strokeStyle = state.axisStyle.color; ctx.lineWidth=2;
-      ctx.beginPath(); ctx.moveTo(x, oy+AXIS_Y-12); ctx.lineTo(x, oy+AXIS_Y+12); ctx.stroke();
-      ctx.font = '600 13px "Source Sans 3", sans-serif';
-      ctx.textAlign='center';
-      ctx.strokeStyle='white'; ctx.lineWidth=3;
-      ctx.strokeText(String(y), x, oy+AXIS_Y+32);
-      ctx.fillStyle = state.axisStyle.color;
-      ctx.fillText(String(y), x, oy+AXIS_Y+32);
+
+    function updateUI() {
+        document.getElementById('event-count').textContent = events.filter(e => e.type !== 'cesure').length;
+        if (events.length === 0) {
+            elEmpty.style.display = 'block'; elTimeline.style.opacity = '0.4'; elCentralBand.style.opacity = '0.4';
+        } else {
+            elEmpty.style.display = 'none'; elTimeline.style.opacity = '1'; elCentralBand.style.opacity = '1';
+        }
+        if (view.autoZoom) {
+            if(events.length > 0) {
+                let maxEvYear = Math.max(...events.map(e => e.type === 'period' && e.end && e.end.y ? parseInt(e.end.y) || 0 : parseInt(e.start.y) || 0));
+                if(maxEvYear > view.maxYear) view.maxYear = maxEvYear + 5;
+            }
+            if(view.minYear >= view.maxYear) view.maxYear = view.minYear + 10;
+            const containerWidth = elScroll.clientWidth;
+            view.zoomLevel = containerWidth > 0 ? containerWidth : 1000;
+        }
+        const widthPx = view.zoomLevel;
+        elTimeline.style.width = widthPx + 'px';
+        computeScale(); 
+        drawAxisSVG();
+        renderElements();
+        renderLegend();
     }
-  }
 
-  // events: leaders + points + cards
-  let expAutoCounter = 0;
-  for(let idx=0; idx<state.events.length; idx++){
-    const ev = state.events[idx];
-    if(ev.type==='cesure') continue;
-    const startDec = dateToDecYear(ev.start);
-    const x = yearToX(startDec);
-    let position = ev.position;
-    if(position==='auto'){ position = (expAutoCounter%2===0)?'top':'bottom'; expAutoCounter++; }
-    const offset = ev.offset!=null?ev.offset:90;
+function drawAxisSVG() {
+        const ticksGroup = document.getElementById('axis-ticks');
+        document.documentElement.style.setProperty('--axis-color', axisStyle.color);
+        ticksGroup.innerHTML = '';
+        
+        // 1. Dessin du nouvel axe principal avec les zigs-zags
+        // Le zigzag doit couvrir exactement la zone compressée [bx, bx+30] (voir getCanvasX/getYearFromX),
+        // pas [bx-15, bx+15] qui déborde sur la partie non compressée et ne couvre que la moitié de la coupure.
+        let pathD = `M ${MARGIN_X},50 `;
+        scaleMap.mergedBreaks.forEach(b => {
+            let bx = getCanvasX(b.s);
+            pathD += `L ${bx},50 L ${bx + 10},35 L ${bx + 20},65 L ${bx + 30},50 `;
+        });
+        pathD += `L ${elTimeline.offsetWidth - MARGIN_X},50`;
+        
+        let pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        pathEl.setAttribute('d', pathD);
+        pathEl.setAttribute('fill', 'none');
+        pathEl.setAttribute('stroke', axisStyle.color);
+        pathEl.setAttribute('stroke-width', axisStyle.width);
+        if(axisStyle.dash) pathEl.setAttribute('stroke-dasharray', axisStyle.dash);
+        if(axisStyle.arrow !== 'none') pathEl.setAttribute('marker-end', `url(#arrow-${axisStyle.arrow})`);
+        ticksGroup.appendChild(pathEl);
 
-    ctx.strokeStyle = ev.color;
-    ctx.setLineDash([3,3]);
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    if(position==='top'){ ctx.moveTo(x, oy+AXIS_Y-offset); ctx.lineTo(x, oy+AXIS_Y); }
-    else { ctx.moveTo(x, oy+AXIS_Y); ctx.lineTo(x, oy+AXIS_Y+offset); }
-    ctx.stroke();
-    ctx.setLineDash([]);
+        let range = view.maxYear - view.minYear;
+        if(range <= 0) return;
+        let pStep = view.primaryScale === 'auto' ? getAutoStep(scaleMap.pxPerYear, true) : parseInt(view.primaryScale);
+        let sStep = view.secondaryScale === 'auto' ? getAutoStep(scaleMap.pxPerYear, false) : parseInt(view.secondaryScale);
 
-    ctx.fillStyle = ev.color;
-    ctx.beginPath(); ctx.arc(x, oy+AXIS_Y, 5.5, 0, Math.PI*2); ctx.fill();
-    ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.stroke();
+        // 2. Dessin des graduations (en excluant la zone des césures)
+        for(let y = Math.floor(view.minYear/sStep)*sStep; y <= view.maxYear; y+=sStep) {
+            if(y < view.minYear || y > view.maxYear || scaleMap.mergedBreaks.some(b => y > b.s && y < b.e)) continue;
+            let x = getCanvasX(y);
+            let lineEl = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            lineEl.setAttribute('x1', x); lineEl.setAttribute('y1', '40%');
+            lineEl.setAttribute('x2', x); lineEl.setAttribute('y2', '60%');
+            lineEl.setAttribute('stroke', axisStyle.color);
+            lineEl.setAttribute('stroke-width', '1');
+            lineEl.setAttribute('opacity', '0.4');
+            ticksGroup.appendChild(lineEl);
+        }
 
-    const cardW = 190;
-    let cardLeft = ev.align==='left'?x:(ev.align==='right'?x-cardW:x-cardW/2);
-    let cardTop = position==='top' ? (oy+AXIS_Y-offset-10) : (oy+AXIS_Y+offset-10);
-    let cursorY = cardTop;
-    if(position==='top'){
-      // measure content height first to anchor bottom at cardTop
-      cursorY = cardTop; // approx, drawn top-down from an estimated top; acceptable approximation
+        for(let y = Math.floor(view.minYear/pStep)*pStep; y <= view.maxYear; y+=pStep) {
+            if(y < view.minYear || y > view.maxYear || scaleMap.mergedBreaks.some(b => y > b.s && y < b.e)) continue;
+            let x = getCanvasX(y);
+            let lineEl = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            lineEl.setAttribute('x1', x); lineEl.setAttribute('y1', '25%');
+            lineEl.setAttribute('x2', x); lineEl.setAttribute('y2', '75%');
+            lineEl.setAttribute('stroke', axisStyle.color);
+            lineEl.setAttribute('stroke-width', Math.max(2, axisStyle.width-1));
+            ticksGroup.appendChild(lineEl);
+
+            let text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute('x', x); text.setAttribute('y', '85%');
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('fill', axisStyle.color);
+            text.setAttribute('font-size', '12px');
+            text.setAttribute('font-weight', '600');
+            text.setAttribute('paint-order', 'stroke');
+            text.setAttribute('stroke', 'var(--bg-cream)');
+            text.setAttribute('stroke-width', '4');
+            text.setAttribute('stroke-linecap', 'round');
+            text.setAttribute('stroke-linejoin', 'round');
+            text.textContent = y;
+            ticksGroup.appendChild(text);
+        }
     }
-    // card background
-    let contentH = 20;
-    if(ev.img && ev.img.src) contentH += (ev.img.h||100)+8;
-    contentH += 16 + 20 + 40 + 14;
-    let boxTop = position==='top' ? cardTop-contentH : cardTop;
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = 'rgba(0,0,0,0.15)'; ctx.shadowBlur=6;
-    ctx.fillRect(cardLeft, boxTop, cardW, contentH);
-    ctx.shadowBlur=0;
-    ctx.fillStyle = ev.color;
-    ctx.fillRect(cardLeft, boxTop, cardW, 4);
 
-    let ty = boxTop+18;
-    ctx.textAlign='left';
-    if(ev.catName){
-      ctx.font='600 10px "Source Sans 3", sans-serif'; ctx.fillStyle='#4a5568';
-      ctx.fillText(ev.catName.toUpperCase(), cardLeft+10, ty); ty+=14;
+    // Choisit le plus petit intervalle qui garde un espacement minimum en pixels entre graduations,
+    // en fonction du zoom actuel (scaleMap.pxPerYear) — pas seulement de la plage d'années De/À.
+    // Avant ce correctif, l'échelle "Auto" ne changeait jamais avec le zoom.
+    function getAutoStep(pxPerYear, isPrimary) {
+        let steps = [1, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000];
+        let minPx = isPrimary ? 80 : 16;
+        for (let s of steps) {
+            if (s * pxPerYear >= minPx) return s;
+        }
+        return steps[steps.length - 1];
     }
-    if(ev.img && ev.img.src){
-      const im = await loadImage(ev.img.src);
-      if(im){ ctx.drawImage(im, cardLeft+10, ty, ev.img.w||170, ev.img.h||100); ty += (ev.img.h||100)+10; }
+
+    function renderElements() {
+        elElementsLayer.innerHTML = '';
+        events.sort((a,b) => getFractionalYear(a.start.y, a.start.m, a.start.d) - getFractionalYear(b.start.y, b.start.m, b.start.d));
+        let altCounter = 0;
+
+        events.forEach(ev => {
+            try {
+                if (ev.type === 'cesure') return; 
+                let startFrac = getFractionalYear(ev.start.y, ev.start.m, ev.start.d);
+                let xStart = getCanvasX(startFrac);
+                
+                if(ev.type === 'period' && ev.end.y) {
+                    let endFrac = Math.max(startFrac, getFractionalYear(ev.end.y, ev.end.m, ev.end.d));
+                    let w = getCanvasX(endFrac) - xStart;
+                    let band = document.createElement('div');
+                    band.className = 'period-band'; band.dataset.id = ev.id;
+                    band.style.left = xStart + 'px'; band.style.width = w + 'px'; band.style.backgroundColor = ev.color;
+                    elElementsLayer.appendChild(band);
+                    createPoint(ev, xStart);
+                } else {
+                    createPoint(ev, xStart);
+                }
+
+                let card = document.createElement('div');
+                card.className = 'event-card'; card.dataset.id = ev.id; 
+                card.style.borderColor = 'var(--border-light)'; card.style.borderTopColor = ev.color;
+                
+                let html = `<div class="edit-icon">✎</div>`;
+                if(ev.image) {
+                    let w = ev.imgW || 52; let h = ev.imgH || 40;
+                    html += `<div class="card-img-container" style="width:${w}px; height:${h}px;"><img src="${ev.image}" class="card-img" style="border-color:${ev.color}"><div class="resize-handle" data-id="${ev.id}"></div></div>`;
+                }
+                let dateStr = formatDate(ev.start);
+                if(ev.type === 'period' && ev.end.y) dateStr += " - " + formatDate(ev.end);
+                html += `<div class="card-date">${dateStr}</div><div class="card-title">${escapeHTML(ev.title)}</div>`;
+                if(ev.desc) html += `<div class="card-desc">${escapeHTML(ev.desc)}</div>`;
+                card.innerHTML = html;
+
+                let isTop = true;
+                if(ev.pos === 'auto') { isTop = (altCounter % 2 === 0); altCounter++; } else if(ev.pos === 'bottom') { isTop = false; }
+                let offset = ev.offsetY || 20;
+
+                let line = document.createElement('div');
+                line.className = 'connection-line'; line.dataset.id = ev.id;
+                line.style.left = xStart + 'px'; line.style.borderLeftColor = ev.color; line.style.height = offset + 'px';
+
+                if(isTop) {
+                    card.style.bottom = `calc(50% + ${offset}px)`; line.style.bottom = '50%'; card.dataset.pos = 'top';
+                } else {
+                    card.style.top = `calc(50% + ${offset}px)`; line.style.top = '50%'; card.dataset.pos = 'bottom';
+                }
+
+                card.style.left = xStart + 'px';
+                if(ev.align === 'center') card.style.transform = 'translateX(-50%)';
+                else if(ev.align === 'left') card.style.transform = 'translateX(0)';
+                else if(ev.align === 'right') card.style.transform = 'translateX(-100%)';
+
+                card.addEventListener('dblclick', (e) => { e.stopPropagation(); openEventModal(ev.id); });
+                setupTooltip(card, ev, dateStr);
+                elElementsLayer.appendChild(line); elElementsLayer.appendChild(card);
+            } catch(err) { console.error("Erreur", err); }
+        });
+
+        scaleMap.mergedBreaks.forEach(b => {
+            let hit = document.createElement('div');
+            hit.className = 'cesure-hitbox'; hit.style.left = getCanvasX(b.s) + 'px'; hit.title = "Césure (saut de temps) : double-cliquez pour modifier";
+            hit.addEventListener('dblclick', (e) => { e.stopPropagation(); openEventModal(b.ids[0]); });
+            elElementsLayer.appendChild(hit);
+        });
     }
-    ctx.font='italic 400 11px Lora, serif'; ctx.fillStyle='#4a5568';
-    let dateTxt = formatDate(ev.start)+(ev.type==='period'&&ev.end?' – '+formatDate(ev.end):'');
-    ctx.fillText(dateTxt, cardLeft+10, ty); ty+=16;
-    ctx.font='700 14px Lora, serif'; ctx.fillStyle='#2b2a28';
-    ctx.fillText(ev.title||'(sans titre)', cardLeft+10, ty); ty+=18;
-    ctx.font='400 11px "Source Sans 3", sans-serif'; ctx.fillStyle='#333';
-    const descLines = wrapText(ctx, ev.desc||'', cardW-20).slice(0,4);
-    descLines.forEach(line=>{ ctx.fillText(line, cardLeft+10, ty); ty+=14; });
-  }
 
-  return cvs;
-}
-function drawArrowHead(ctx, x, y, dir, color, shape){
-  ctx.fillStyle = color;
-  ctx.strokeStyle = color;
-  if(shape==='chevron'){
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x-9*dir, y-5);
-    ctx.lineTo(x, y);
-    ctx.lineTo(x-9*dir, y+5);
-    ctx.stroke();
-  } else if(shape==='diamond'){
-    ctx.beginPath();
-    ctx.moveTo(x, y); ctx.lineTo(x-5*dir, y-5); ctx.lineTo(x-10*dir, y); ctx.lineTo(x-5*dir, y+5);
-    ctx.closePath(); ctx.fill();
-  } else if(shape==='circle'){
-    ctx.beginPath();
-    ctx.arc(x-5*dir, y, 4, 0, Math.PI*2);
-    ctx.fill();
-  } else {
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x-10*dir, y-6);
-    ctx.lineTo(x-10*dir, y+6);
-    ctx.closePath();
-    ctx.fill();
-  }
-}
+    function createPoint(ev, x) {
+        let pt = document.createElement('div');
+        pt.className = 'event-point'; pt.dataset.id = ev.id; pt.dataset.color = ev.color; pt.style.left = x + 'px';
+        pt.style.backgroundColor = 'transparent'; pt.style.borderTopColor = ev.color; 
+        let dot = document.createElement('div');
+        dot.style.width = '12px'; dot.style.height = '12px'; dot.style.backgroundColor = ev.color; dot.style.borderRadius = '50%'; dot.style.position = 'absolute'; dot.style.top = '50%'; dot.style.left = '50%'; dot.style.transform = 'translate(-50%, -50%)'; dot.style.pointerEvents = 'none';
+        pt.appendChild(dot);
+        pt.addEventListener('dblclick', (e) => { e.stopPropagation(); openEventModal(ev.id); });
+        elElementsLayer.appendChild(pt);
+    }
 
-$('btnExportPng').addEventListener('click', async ()=>{
-  const cvs = await generateExportCanvas();
-  cvs.toBlob(blob=>{
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = (state.title||'frise').replace(/[^\w\-]+/g,'_')+'.png';
-    document.body.appendChild(a); a.click(); a.remove();
-  });
-});
+    function renderLegend() {
+        const foot = document.getElementById('legend-footer'); foot.innerHTML = '';
+        let used = {};
+        events.forEach(ev => { if(ev.catName && !used[ev.color] && ev.type !== 'cesure') used[ev.color] = ev.catName; });
+        Object.keys(used).forEach(color => {
+            let d = document.createElement('div'); d.className = 'legend-item';
+            d.innerHTML = `<div class="legend-swatch" style="background:${color}"></div><span>${escapeHTML(used[color])}</span>`;
+            foot.appendChild(d);
+        });
+        if(Object.keys(used).length === 0) foot.style.display = 'none'; else foot.style.display = 'flex';
+    }
 
-$('btnExportPdf').addEventListener('click', async ()=>{
-  const cvs = await generateExportCanvas();
-  const dataUrl = cvs.toDataURL('image/png');
-  const overlay = document.createElement('div');
-  overlay.id = 'printOverlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center;';
-  const img = document.createElement('img');
-  img.src = dataUrl;
-  img.style.cssText = 'max-width:100%;max-height:100%;';
-  overlay.appendChild(img);
-  document.body.appendChild(overlay);
-  const style = document.createElement('style');
-  style.id='printStyle';
-  style.textContent = '@media print { @page { size: landscape; margin:0; } body>*:not(#printOverlay){display:none!important;} }';
-  document.head.appendChild(style);
+    function saveTimelineData() {
+        const data = { events: events, view: view, axisStyle: axisStyle, title: document.querySelector('.masthead-title').innerText, student: { nom: document.getElementById('info-nom').value, prenom: document.getElementById('info-prenom').value, classe: document.getElementById('info-classe').value } };
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
+        const a = document.createElement('a'); a.setAttribute("href", dataStr); a.setAttribute("download", "frise_sauvegarde.json"); document.body.appendChild(a); a.click(); a.remove();
+    }
 
-  const cleanup = ()=>{
-    overlay.remove(); style.remove();
-    window.removeEventListener('afterprint', cleanup);
-  };
-  window.addEventListener('afterprint', cleanup);
-  setTimeout(()=>{ window.print(); }, 150);
-});
+    function loadTimelineData(event) {
+        const file = event.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (data.events) events = data.events; if (data.view) view = data.view; if (data.axisStyle) axisStyle = data.axisStyle;
+                if (data.title) document.querySelector('.masthead-title').innerText = data.title;
+                if (data.student) { document.getElementById('info-nom').value = data.student.nom || ''; document.getElementById('info-prenom').value = data.student.prenom || ''; document.getElementById('info-classe').value = data.student.classe || ''; }
+                currentId = events.length > 0 ? Math.max(...events.map(ev => ev.id)) + 1 : 1;
+                document.getElementById('tb-min-year').value = view.minYear; document.getElementById('tb-max-year').value = view.maxYear; document.getElementById('scale-primary').value = view.primaryScale; document.getElementById('scale-secondary').value = view.secondaryScale;
+                updateUI();
+            } catch (err) { alert("Erreur : Impossible de lire ce fichier."); }
+        };
+        reader.readAsText(file); event.target.value = ''; 
+    }
 
-/* ============================= INIT ============================= */
-render(true);
-})();
+    function resetTimeline() {
+        if(confirm("Attention : vous allez effacer toute la frise actuelle. Voulez-vous continuer ?")) {
+            events = []; currentId = 1; view = { minYear: 1900, maxYear: 2000, zoomLevel: 1, autoZoom: true, primaryScale: 'auto', secondaryScale: 'auto' }; axisStyle = { width: 2, color: PALETTE.slate, dash: '', arrow: 'solid' };
+            document.querySelector('.masthead-title').innerText = "Titre de la Frise (cliquez pour éditer)"; document.getElementById('info-nom').value = ''; document.getElementById('info-prenom').value = ''; document.getElementById('info-classe').value = ''; document.getElementById('tb-min-year').value = ''; document.getElementById('tb-max-year').value = ''; document.getElementById('scale-primary').value = 'auto'; document.getElementById('scale-secondary').value = 'auto';
+            updateUI();
+        }
+    }
+
+    let dragObj = { isDown: false, startX: 0, scrollLeft: 0, hasMoved: false };
+    let resizeObj = { isResizing: false, el: null, evId: null, startX: 0, startY: 0, startW: 0, startH: 0, hasMoved: false };
+    let cardDragObj = { isDragging: false, el: null, lineEl: null, pointEl: null, bandEl: null, dateEl: null, evId: null, startX: 0, startY: 0, startOffset: 0, currentOffset: 0, isTop: true, startFrac: 0, durationFrac: 0, startX_canvas: 0, hasMoved: false };
+    
+    function bindEvents() {
+        document.getElementById('btn-help').addEventListener('click', () => { document.getElementById('modal-help').classList.add('active'); });
+        document.getElementById('btn-close-help').addEventListener('click', () => { document.getElementById('modal-help').classList.remove('active'); });
+        elEmpty.addEventListener('click', () => { let year = Math.round((view.minYear + view.maxYear) / 2); openEventModal(null, year); });
+
+        elScroll.addEventListener('mousedown', e => {
+            if(e.target.classList.contains('resize-handle')) {
+                e.stopPropagation(); resizeObj.isResizing = true; resizeObj.hasMoved = false; resizeObj.el = e.target.parentElement; resizeObj.evId = parseInt(e.target.dataset.id); resizeObj.startX = e.pageX; resizeObj.startY = e.pageY; resizeObj.startW = resizeObj.el.offsetWidth; resizeObj.startH = resizeObj.el.offsetHeight; return;
+            }
+            const target = e.target.closest('.event-card') || e.target.closest('.event-point');
+            if(target && !e.target.classList.contains('resize-handle')) {
+                e.stopPropagation(); cardDragObj.isDragging = true; cardDragObj.hasMoved = false; cardDragObj.evId = parseInt(target.dataset.id);
+                cardDragObj.el = document.querySelector(`.event-card[data-id="${cardDragObj.evId}"]`); cardDragObj.lineEl = document.querySelector(`.connection-line[data-id="${cardDragObj.evId}"]`); cardDragObj.pointEl = document.querySelector(`.event-point[data-id="${cardDragObj.evId}"]`); cardDragObj.bandEl = document.querySelector(`.period-band[data-id="${cardDragObj.evId}"]`); cardDragObj.dateEl = cardDragObj.el ? cardDragObj.el.querySelector('.card-date') : null;
+                cardDragObj.startX = e.pageX; cardDragObj.startY = e.pageY;
+                let ev = events.find(x => x.id === cardDragObj.evId);
+                cardDragObj.startOffset = ev.offsetY || 20; cardDragObj.currentOffset = cardDragObj.startOffset; cardDragObj.isTop = cardDragObj.el ? cardDragObj.el.dataset.pos === 'top' : true;
+                cardDragObj.startFrac = getFractionalYear(ev.start.y, ev.start.m, ev.start.d); cardDragObj.startX_canvas = getCanvasX(cardDragObj.startFrac); 
+                if(ev.type === 'period' && ev.end.y) { cardDragObj.durationFrac = getFractionalYear(ev.end.y, ev.end.m, ev.end.d) - cardDragObj.startFrac; }
+                return;
+            }
+            if(e.target.closest('.cesure-hitbox') || e.target.closest('.axis-hitbox')) return;
+            dragObj.isDown = true; dragObj.hasMoved = false; dragObj.startX = e.pageX - elScroll.offsetLeft; dragObj.scrollLeft = elScroll.scrollLeft;
+        });
+
+        window.addEventListener('mousemove', e => {
+            if(resizeObj.isResizing) {
+                e.preventDefault(); const deltaX = e.pageX - resizeObj.startX; const deltaY = e.pageY - resizeObj.startY;
+                if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) resizeObj.hasMoved = true;
+                if (resizeObj.hasMoved) { resizeObj.el.style.width = Math.max(30, resizeObj.startW + deltaX) + 'px'; resizeObj.el.style.height = Math.max(30, resizeObj.startH + deltaY) + 'px'; }
+            } else if (cardDragObj.isDragging) {
+                e.preventDefault(); const deltaX = e.pageX - cardDragObj.startX; const deltaY = e.pageY - cardDragObj.startY;
+                if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) cardDragObj.hasMoved = true;
+                if (cardDragObj.hasMoved) {
+                    let ev = events.find(x => x.id === cardDragObj.evId);
+                    let newOffset = Math.max(5, cardDragObj.isTop ? cardDragObj.startOffset - deltaY : cardDragObj.startOffset + deltaY);
+                    cardDragObj.currentOffset = newOffset;
+                    if(cardDragObj.el) { if(cardDragObj.isTop) { cardDragObj.el.style.bottom = `calc(50% + ${newOffset}px)`; } else { cardDragObj.el.style.top = `calc(50% + ${newOffset}px)`; } }
+                    if(cardDragObj.lineEl) cardDragObj.lineEl.style.height = `${newOffset}px`;
+
+                    let rawFrac = getYearFromX(cardDragObj.startX_canvas + deltaX);
+                    let newFrac = (!ev.start.m && !ev.start.d) ? Math.round(rawFrac) : (ev.start.m && !ev.start.d) ? Math.round(rawFrac * 12) / 12 : Math.round(rawFrac * 365) / 365; 
+                    applyFracToEvent(ev, newFrac, cardDragObj.durationFrac);
+                    let xStart = getCanvasX(newFrac);
+                    if(cardDragObj.el) cardDragObj.el.style.left = xStart + 'px'; if(cardDragObj.lineEl) cardDragObj.lineEl.style.left = xStart + 'px'; if(cardDragObj.pointEl) cardDragObj.pointEl.style.left = xStart + 'px';
+                    if (cardDragObj.bandEl && ev.type === 'period' && ev.end.y) { cardDragObj.bandEl.style.left = xStart + 'px'; cardDragObj.bandEl.style.width = (getCanvasX(newFrac + cardDragObj.durationFrac) - xStart) + 'px'; }
+                    let dateStr = formatDate(ev.start); if(ev.type === 'period' && ev.end.y) dateStr += " - " + formatDate(ev.end);
+                    if(cardDragObj.dateEl) cardDragObj.dateEl.textContent = dateStr;
+                }
+            } else if(dragObj.isDown) {
+                e.preventDefault(); const walk = (e.pageX - elScroll.offsetLeft - dragObj.startX) * 1.5;
+                if (Math.abs(walk) > 5) dragObj.hasMoved = true;
+                elScroll.scrollLeft = dragObj.scrollLeft - walk;
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            if(resizeObj.isResizing) {
+                resizeObj.isResizing = false;
+                if(resizeObj.hasMoved) { let ev = events.find(x => x.id === resizeObj.evId); if(ev) { ev.imgW = resizeObj.el.offsetWidth; ev.imgH = resizeObj.el.offsetHeight; updateUI(); } }
+            }
+            if(cardDragObj.isDragging) {
+                cardDragObj.isDragging = false;
+                if(cardDragObj.hasMoved) {
+                    let ev = events.find(x => x.id === cardDragObj.evId);
+                    if(ev) { ev.offsetY = cardDragObj.currentOffset; updateUI(); }
+                }
+            }
+            dragObj.isDown = false;
+        });
+
+        elScroll.addEventListener('dblclick', e => {
+            if(e.target.closest('.event-card') || e.target.closest('.event-point') || e.target.closest('.cesure-hitbox')) return;
+            openEventModal(null, Math.round(getYearFromX(e.clientX - elTimeline.getBoundingClientRect().left)));
+        });
+
+        document.getElementById('f-type').addEventListener('change', e => {
+            const isCesure = e.target.value === 'cesure';
+            document.getElementById('group-end-date').style.display = (e.target.value === 'period' || isCesure) ? 'flex' : 'none';
+            document.getElementById('group-standard-fields').style.display = isCesure ? 'none' : 'block';
+            document.getElementById('group-extended-fields').style.display = isCesure ? 'none' : 'block';
+            if(isCesure) { document.getElementById('f-title').removeAttribute('required'); document.getElementById('f-title').value = "Césure"; } 
+            else { document.getElementById('f-title').setAttribute('required', 'true'); if (document.getElementById('f-title').value === "Césure") document.getElementById('f-title').value = ""; }
+        });
+
+        document.getElementById('btn-apply-range').addEventListener('click', () => {
+            let min = parseInt(document.getElementById('tb-min-year').value); let max = parseInt(document.getElementById('tb-max-year').value);
+            if(!isNaN(min) && !isNaN(max)) { view.minYear = min; view.maxYear = max; view.autoZoom = true; updateUI(); }
+        });
+
+        document.getElementById('btn-zoom-in').addEventListener('click', () => { view.autoZoom = false; view.zoomLevel = Math.max(elScroll.clientWidth, view.zoomLevel * 1.2); updateUI(); });
+        document.getElementById('btn-zoom-out').addEventListener('click', () => { view.autoZoom = false; view.zoomLevel = Math.max(elScroll.clientWidth, view.zoomLevel * 0.8); updateUI(); });
+        document.getElementById('btn-zoom-auto').addEventListener('click', () => { view.autoZoom = true; updateUI(); });
+        document.getElementById('scale-primary').addEventListener('change', e => { view.primaryScale = e.target.value; updateUI(); });
+        document.getElementById('scale-secondary').addEventListener('change', e => { view.secondaryScale = e.target.value; updateUI(); });
+        window.addEventListener('resize', () => { if(view.autoZoom) updateUI(); });
+
+        document.getElementById('btn-add-event').addEventListener('click', () => openEventModal());
+        document.getElementById('btn-cancel-event').addEventListener('click', closeModals);
+        document.getElementById('btn-save-event').addEventListener('click', saveEvent);
+        document.getElementById('btn-delete-event').addEventListener('click', deleteEvent);
+
+        document.getElementById('btn-axis-style').addEventListener('click', openAxisModal);
+        document.getElementById('btn-close-axis').addEventListener('click', closeModals);
+        document.getElementById('btn-reset-axis').addEventListener('click', () => { axisStyle = { width: 2, color: PALETTE.slate, dash: '', arrow: 'solid' }; syncAxisModal(); updateUI(); });
+        ['a-width', 'a-color', 'a-dash', 'a-arrow'].forEach(id => { document.getElementById(id).addEventListener('input', updateAxisFromModal); });
+
+        const imgInput = document.getElementById('f-file-input'); const imgBox = document.getElementById('f-img-upload'); const btnRemImg = document.getElementById('btn-remove-img');
+        imgBox.addEventListener('click', () => imgInput.click());
+        imgBox.addEventListener('dragover', e => { e.preventDefault(); imgBox.style.borderColor = 'var(--teal)'; });
+        imgBox.addEventListener('dragleave', e => { imgBox.style.borderColor = '#cbd5e1'; });
+        imgBox.addEventListener('drop', e => { e.preventDefault(); imgBox.style.borderColor = '#cbd5e1'; if(e.dataTransfer.files && e.dataTransfer.files[0]) handleImage(e.dataTransfer.files[0]); });
+        imgInput.addEventListener('change', e => { if(e.target.files && e.target.files[0]) handleImage(e.target.files[0]); });
+        btnRemImg.addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('f-img-preview').innerHTML = ''; imgInput.value = ''; btnRemImg.style.display = 'none'; imgBox.dataset.base64 = ''; });
+
+        document.getElementById('btn-export').addEventListener('click', exportToPNG);
+        document.getElementById('btn-export-pdf').addEventListener('click', exportToPDF);
+        document.getElementById('btn-save-data').addEventListener('click', saveTimelineData);
+        document.getElementById('btn-load-data').addEventListener('click', () => document.getElementById('f-load-data').click());
+        document.getElementById('f-load-data').addEventListener('change', loadTimelineData);
+        document.getElementById('btn-reset-data').addEventListener('click', resetTimeline);
+    }
+
+    function setupTooltip(el, ev, dateStr) {
+        const tt = document.getElementById('tooltip');
+        el.addEventListener('mouseenter', e => {
+            let html = ''; if(ev.image) html += `<img src="${ev.image}">`;
+            html += `<div class="tt-date">${dateStr}</div><h4>${escapeHTML(ev.title)}</h4>`;
+            if(ev.desc) html += `<p>${escapeHTML(ev.desc)}</p>`;
+            tt.innerHTML = html; tt.style.opacity = 1; positionTooltip(e);
+        });
+        el.addEventListener('mousemove', positionTooltip); el.addEventListener('mouseleave', () => tt.style.opacity = 0);
+    }
+    
+    function positionTooltip(e) {
+        const tt = document.getElementById('tooltip');
+        let x = e.pageX + 15; let y = e.pageY + 15;
+        if(x + 250 > window.innerWidth) x = e.pageX - 265;
+        if(y + tt.offsetHeight > window.innerHeight) y = e.pageY - tt.offsetHeight - 15;
+        tt.style.left = x + 'px'; tt.style.top = y + 'px';
+    }
+
+    function populateSwatches() {
+        let html = ''; COLORS.forEach((c, i) => { html += `<div class="swatch ${i===0?'selected':''}" style="background-color:${c}" data-color="${c}" onclick="selectSwatch(this, 'f-swatches')"></div>`; }); document.getElementById('f-swatches').innerHTML = html;
+        let html2 = ''; COLORS.forEach(c => { html2 += `<div class="swatch" style="background-color:${c}" onclick="selectAxisSwatch('${c}')"></div>`; }); document.getElementById('a-swatches').innerHTML = html2;
+    }
+
+    window.selectSwatch = function(el, containerId) { document.querySelectorAll(`#${containerId} .swatch`).forEach(s => s.classList.remove('selected')); el.classList.add('selected'); };
+    window.selectAxisSwatch = function(c) { document.getElementById('a-color').value = c; updateAxisFromModal(); };
+
+    function handleImage(file) {
+        const reader = new FileReader();
+        reader.onload = e => { document.getElementById('f-img-preview').innerHTML = `<img src="${e.target.result}">`; document.getElementById('f-img-upload').dataset.base64 = e.target.result; document.getElementById('btn-remove-img').style.display = 'inline-block'; };
+        reader.readAsDataURL(file);
+    }
+
+    function openEventModal(id = null, presetYear = null) {
+        editingId = id;
+        document.getElementById('modal-title').textContent = id ? 'Modifier l\'élément' : 'Ajouter un élément';
+        document.getElementById('btn-delete-event').style.display = id ? 'block' : 'none';
+        document.getElementById('f-type').value = 'event'; document.getElementById('f-title').value = ''; document.getElementById('f-desc').value = '';
+        ['start', 'end'].forEach(p => { document.getElementById(`f-${p}-d`).value = ''; document.getElementById(`f-${p}-m`).value = ''; document.getElementById(`f-${p}-y`).value = ''; });
+        document.getElementById('f-cat-name').value = ''; document.getElementById('f-pos').value = 'auto'; document.getElementById('f-align').value = 'center'; document.getElementById('f-img-preview').innerHTML = ''; document.getElementById('f-img-upload').dataset.base64 = ''; document.getElementById('btn-remove-img').style.display = 'none';
+        selectSwatch(document.querySelector('#f-swatches .swatch'), 'f-swatches');
+
+        if(id) {
+            const ev = events.find(e => e.id === id);
+            document.getElementById('f-type').value = ev.type; document.getElementById('f-type').dispatchEvent(new Event('change')); 
+            document.getElementById('f-title').value = ev.title || ''; document.getElementById('f-desc').value = ev.desc || '';
+            document.getElementById('f-start-d').value = ev.start.d || ''; document.getElementById('f-start-m').value = ev.start.m || ''; document.getElementById('f-start-y').value = ev.start.y || '';
+            if(ev.end) { document.getElementById('f-end-d').value = ev.end.d || ''; document.getElementById('f-end-m').value = ev.end.m || ''; document.getElementById('f-end-y').value = ev.end.y || ''; }
+            document.getElementById('f-cat-name').value = ev.catName || ''; document.getElementById('f-pos').value = ev.pos || 'auto'; document.getElementById('f-align').value = ev.align || 'center';
+            let swatch = Array.from(document.querySelectorAll('#f-swatches .swatch')).find(s => s.dataset.color === ev.color); if(swatch) selectSwatch(swatch, 'f-swatches');
+            if(ev.image) { document.getElementById('f-img-preview').innerHTML = `<img src="${ev.image}">`; document.getElementById('f-img-upload').dataset.base64 = ev.image; document.getElementById('btn-remove-img').style.display = 'inline-block'; }
+        } else {
+            document.getElementById('f-type').dispatchEvent(new Event('change'));
+            if(presetYear) document.getElementById('f-start-y').value = presetYear;
+        }
+        document.getElementById('modal-event').classList.add('active');
+    }
+
+    function saveEvent() {
+        const type = document.getElementById('f-type').value;
+        const title = document.getElementById('f-title').value.trim() || (type === 'cesure' ? 'Césure' : '');
+        const yStart = document.getElementById('f-start-y').value;
+        
+        if(!yStart || (type !== 'cesure' && !title)) { alert("Veuillez remplir les champs obligatoires (Titre et Année)."); return; }
+        if ((type === 'period' || type === 'cesure') && !document.getElementById('f-end-y').value) { alert("L'année de fin est obligatoire pour ce type d'élément."); return; }
+
+        let existingEvent = editingId ? events.find(e => e.id === editingId) : null;
+        const ev = {
+            id: editingId || currentId++, type: type, title: title, desc: document.getElementById('f-desc').value,
+            start: { d: document.getElementById('f-start-d').value, m: document.getElementById('f-start-m').value, y: yStart },
+            end: (type === 'period' || type === 'cesure') ? { d: document.getElementById('f-end-d').value, m: document.getElementById('f-end-m').value, y: document.getElementById('f-end-y').value } : {},
+            color: document.querySelector('#f-swatches .swatch.selected').dataset.color, catName: document.getElementById('f-cat-name').value.trim(), pos: document.getElementById('f-pos').value, align: document.getElementById('f-align').value,
+            image: document.getElementById('f-img-upload').dataset.base64 || null, imgW: existingEvent ? existingEvent.imgW : 52, imgH: existingEvent ? existingEvent.imgH : 40, offsetY: existingEvent ? existingEvent.offsetY : 20
+        };
+
+        if(editingId) { events = events.map(e => e.id === editingId ? ev : e); } else { events.push(ev); }
+        view.autoZoom = true; closeModals(); updateUI();
+    }
+
+    function deleteEvent() { if(confirm("Supprimer cet élément ?")) { events = events.filter(e => e.id !== editingId); closeModals(); view.autoZoom = true; updateUI(); } }
+    function openAxisModal() { syncAxisModal(); document.getElementById('modal-axis').classList.add('active'); }
+    function syncAxisModal() { document.getElementById('a-width').value = axisStyle.width; document.getElementById('axis-w-val').textContent = axisStyle.width; document.getElementById('a-color').value = axisStyle.color; document.getElementById('a-dash').value = axisStyle.dash; document.getElementById('a-arrow').value = axisStyle.arrow; }
+    function updateAxisFromModal() { axisStyle.width = document.getElementById('a-width').value; document.getElementById('axis-w-val').textContent = axisStyle.width; axisStyle.color = document.getElementById('a-color').value; axisStyle.dash = document.getElementById('a-dash').value; axisStyle.arrow = document.getElementById('a-arrow').value; drawAxisSVG(); }
+    function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); }
+
+    async function generateExportCanvas() {
+        if(events.length === 0) { alert("La frise est vide."); return null; }
+        const scale = 2; const width = elTimeline.offsetWidth; const height = elTimeline.offsetHeight; const headerHeight = 100; 
+        const canvas = document.createElement('canvas'); canvas.width = width * scale; canvas.height = (height + headerHeight) * scale;
+        const ctx = canvas.getContext('2d'); ctx.scale(scale, scale);
+
+        ctx.fillStyle = '#f0ece1'; ctx.fillRect(0, 0, width, height + headerHeight);
+        
+        const logoElement = document.querySelector('.masthead-logo');
+        if (logoElement && logoElement.src) {
+            await new Promise(resolve => { const img = new Image(); img.onload = () => { const targetH = 60; const targetW = img.width * (targetH / img.height); ctx.drawImage(img, 30, (headerHeight - targetH) / 2, targetW, targetH); resolve(); }; img.onerror = resolve; img.src = logoElement.src; });
+        }
+
+        const titleElement = document.querySelector('.masthead-title'); const titleText = titleElement ? titleElement.innerText.trim() : "Frise Chronologique";
+        const nom = document.getElementById('info-nom').value.trim(); const prenom = document.getElementById('info-prenom').value.trim(); const classe = document.getElementById('info-classe').value.trim();
+        let studentText = []; if(nom) studentText.push(`Nom : ${nom}`); if(prenom) studentText.push(`Prénom : ${prenom}`); if(classe) studentText.push(`Classe : ${classe}`);
+
+        ctx.textAlign = 'center';
+        if (studentText.length > 0) { ctx.fillStyle = '#2c4a5e'; ctx.font = '600 28px "Lora", serif'; ctx.fillText(titleText, width / 2, 35); ctx.fillStyle = '#4a5568'; ctx.font = '400 14px "Source Sans 3", sans-serif'; ctx.fillText(studentText.join('   |   '), width / 2, 70); } 
+        else { ctx.fillStyle = '#2c4a5e'; ctx.font = '600 28px "Lora", serif'; ctx.textBaseline = 'middle'; ctx.fillText(titleText, width / 2, headerHeight / 2); }
+
+        ctx.translate(0, headerHeight);
+        ctx.fillStyle = '#e2ddcf'; const bandH = 300; ctx.fillRect(0, (height - bandH)/2, width, bandH);
+
+        const imagesToLoad = events.filter(e => e.image).map(e => { return new Promise(resolve => { const img = new Image(); img.onload = () => resolve({ id: e.id, img }); img.onerror = () => resolve({ id: e.id, img: null }); img.src = e.image; }); });
+        const loadedImages = await Promise.all(imagesToLoad); const imgMap = {}; loadedImages.forEach(item => { if(item.img) imgMap[item.id] = item.img; });
+
+        events.forEach(ev => {
+            if(ev.type === 'period' && ev.end.y) {
+                let startFrac = getFractionalYear(ev.start.y, ev.start.m, ev.start.d); let endFrac = Math.max(startFrac, getFractionalYear(ev.end.y, ev.end.m, ev.end.d));
+                let xStart = getCanvasX(startFrac); let w = getCanvasX(endFrac) - xStart;
+                ctx.globalAlpha = 0.3; ctx.fillStyle = ev.color; ctx.fillRect(xStart, height/2 - 10, w, 20); ctx.globalAlpha = 1.0;
+            }
+        });
+
+        ctx.strokeStyle = axisStyle.color; ctx.lineWidth = axisStyle.width;
+        if(axisStyle.dash) ctx.setLineDash(axisStyle.dash.split(',').map(Number)); else ctx.setLineDash([]);
+        ctx.beginPath(); ctx.moveTo(MARGIN_X, height/2);
+        scaleMap.mergedBreaks.forEach(b => { let bx = getCanvasX(b.s); ctx.lineTo(bx, height/2); ctx.lineTo(bx + 10, height/2 - 15); ctx.lineTo(bx + 20, height/2 + 15); ctx.lineTo(bx + 30, height/2); });
+        ctx.lineTo(width - MARGIN_X, height/2); ctx.stroke(); ctx.setLineDash([]);
+
+        if(axisStyle.arrow !== 'none') {
+            ctx.fillStyle = axisStyle.color; ctx.beginPath(); let endX = width - MARGIN_X;
+            if(axisStyle.arrow === 'solid') { ctx.moveTo(endX, height/2); ctx.lineTo(endX-10, height/2-5); ctx.lineTo(endX-10, height/2+5); } 
+            else if(axisStyle.arrow === 'chevron') { ctx.moveTo(endX-8, height/2-4); ctx.lineTo(endX, height/2); ctx.lineTo(endX-8, height/2+4); ctx.stroke(); ctx.beginPath(); } 
+            else if(axisStyle.arrow === 'diamond') { ctx.moveTo(endX, height/2); ctx.lineTo(endX-5, height/2-5); ctx.lineTo(endX-10, height/2); ctx.lineTo(endX-5, height/2+5); } 
+            else if(axisStyle.arrow === 'circle') { ctx.arc(endX-5, height/2, 4, 0, 2*Math.PI); }
+            ctx.fill();
+        }
+
+        let pStep = view.primaryScale === 'auto' ? getAutoStep(scaleMap.pxPerYear, true) : parseInt(view.primaryScale);
+        let sStep = view.secondaryScale === 'auto' ? getAutoStep(scaleMap.pxPerYear, false) : parseInt(view.secondaryScale);
+
+        ctx.strokeStyle = axisStyle.color; ctx.globalAlpha = 0.4; ctx.lineWidth = 1;
+        for(let y = Math.floor(view.minYear/sStep)*sStep; y <= view.maxYear; y+=sStep) {
+            if(y < view.minYear || y > view.maxYear || scaleMap.mergedBreaks.some(b => y > b.s && y < b.e)) continue;
+            let x = getCanvasX(y); ctx.beginPath(); ctx.moveTo(x, height*0.4); ctx.lineTo(x, height*0.6); ctx.stroke();
+        }
+        ctx.globalAlpha = 1.0; ctx.lineWidth = Math.max(2, axisStyle.width-1); ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.font = '600 12px "Source Sans 3", sans-serif';
+        for(let y = Math.floor(view.minYear/pStep)*pStep; y <= view.maxYear; y+=pStep) {
+            if(y < view.minYear || y > view.maxYear || scaleMap.mergedBreaks.some(b => y > b.s && y < b.e)) continue;
+            let x = getCanvasX(y); ctx.beginPath(); ctx.moveTo(x, height*0.25); ctx.lineTo(x, height*0.75); ctx.stroke();
+            ctx.strokeStyle = '#f0ece1'; ctx.lineWidth = 4; ctx.lineJoin = 'round'; ctx.strokeText(y, x, height*0.85); ctx.fillStyle = axisStyle.color; ctx.fillText(y, x, height*0.85);
+        }
+
+        const connections = document.querySelectorAll('.connection-line'); ctx.lineWidth = 2; ctx.setLineDash([3, 3]); 
+        connections.forEach(conn => {
+            const left = parseFloat(conn.style.left); const isTop = conn.style.bottom === '50%'; const h = parseFloat(conn.style.height); ctx.strokeStyle = conn.style.borderLeftColor;
+            ctx.beginPath(); if(isTop) { ctx.moveTo(left, height/2); ctx.lineTo(left, height/2 - h); } else { ctx.moveTo(left, height/2); ctx.lineTo(left, height/2 + h); } ctx.stroke();
+        });
+        ctx.setLineDash([]); 
+
+        document.querySelectorAll('.event-point').forEach(pt => {
+            const left = parseFloat(pt.style.left); ctx.fillStyle = pt.style.borderTopColor; ctx.beginPath(); ctx.arc(left, height/2, 6, 0, 2*Math.PI); ctx.fill();
+        });
+
+        document.querySelectorAll('.event-card').forEach((card) => {
+            const ev = events.find(e => e.id === parseInt(card.dataset.id)); 
+            if(!ev || ev.type === 'cesure') return;
+            const rect = card.getBoundingClientRect(); const parentRect = elTimeline.getBoundingClientRect();
+            const exactX = rect.left - parentRect.left; const exactY = rect.top - parentRect.top; const w = rect.width; const h = rect.height;
+
+            ctx.fillStyle = '#fff'; ctx.fillRect(exactX, exactY, w, h); ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1; ctx.strokeRect(exactX, exactY, w, h);
+            ctx.fillStyle = ev.color; ctx.fillRect(exactX, exactY, w, 3);
+            let currentY = exactY + 8;
+            
+            if(ev.image && imgMap[ev.id]) {
+                const imgW = ev.imgW || 52; const imgH = ev.imgH || 40; ctx.drawImage(imgMap[ev.id], exactX + 8, currentY, imgW, imgH); ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1; ctx.strokeRect(exactX + 8, currentY, imgW, imgH); currentY += imgH + 6;
+            }
+
+            ctx.fillStyle = '#4a5568'; ctx.font = '600 10px "Source Sans 3", sans-serif'; ctx.textAlign = 'left';
+            let dateStr = formatDate(ev.start); if(ev.type === 'period' && ev.end.y) dateStr += " - " + formatDate(ev.end);
+            ctx.fillText(dateStr, exactX + 8, currentY); currentY += 14;
+
+            ctx.fillStyle = '#1a202c'; ctx.font = '600 12px "Lora", serif'; 
+            wrapTextCanvas(ctx, ev.title, exactX + 8, currentY, w - 16, 14, 2); currentY += 16 * Math.min(2, Math.ceil(ctx.measureText(ev.title).width / (w-16)));
+
+            if(ev.desc) { ctx.fillStyle = '#4a5568'; ctx.font = '10px "Source Sans 3", sans-serif'; wrapTextCanvas(ctx, ev.desc, exactX + 8, currentY, w - 16, 12, 2); }
+        });
+        return canvas;
+    }
+
+    async function exportToPNG() {
+        const canvas = await generateExportCanvas(); if(!canvas) return;
+        const link = document.createElement('a'); link.download = 'frise-chronologique.png'; link.href = canvas.toDataURL('image/png'); link.click();
+    }
+
+    async function exportToPDF() {
+        const canvas = await generateExportCanvas(); if(!canvas) return;
+        const dataUrl = canvas.toDataURL('image/png');
+        const printContainer = document.createElement('div'); printContainer.id = 'print-container';
+        printContainer.style.cssText = 'position:absolute;top:0;left:0;width:100vw;min-height:100vh;background-color:#fff;z-index:99999;';
+        printContainer.innerHTML = `<img src="${dataUrl}" style="max-width: 100%; height: auto; display: block; margin: 0 auto;">`;
+        const style = document.createElement('style'); style.textContent = `@media print { body > *:not(#print-container) { display: none !important; } body { margin: 0; padding: 0; background: #fff; } @page { size: landscape; margin: 1cm; } }`;
+        document.body.appendChild(style); document.body.appendChild(printContainer);
+        setTimeout(() => { window.print(); document.body.removeChild(printContainer); document.body.removeChild(style); }, 300);
+    }
+
+    function wrapTextCanvas(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
+        const words = text.split(' '); let line = ''; let lines = 0;
+        for(let n = 0; n < words.length; n++) {
+            let testLine = line + words[n] + ' '; let metrics = ctx.measureText(testLine); let testWidth = metrics.width;
+            if (testWidth > maxWidth && n > 0) { ctx.fillText(line, x, y); line = words[n] + ' '; y += lineHeight; lines++; if(lines >= maxLines) break; } else { line = testLine; }
+        }
+        if(lines < maxLines) { if (ctx.measureText(line).width > maxWidth) { ctx.fillText(line.substring(0, line.length-3) + '...', x, y); } else { ctx.fillText(line, x, y); } }
+    }
+
+    function escapeHTML(str) { return !str ? '' : str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
+
+    window.onload = init;
 </script>
 </body>
 </html>

@@ -6,12 +6,11 @@
   "author": "RAJ Editions",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win"
+    "dist": "node build.js"
   },
   "devDependencies": {
-    "electron": "^13.6.9",
-    "electron-builder": "^22.14.13",
-    "electron-packager": "^15.5.2"
+    "electron": "^44.9.0",
+    "electron-builder": "^26.15.3"
   },
   "build": {
     "appId": "com.rajeditions.frisechronologique",
@@ -47,5 +46,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     }
+  },
+  "allowScripts": {
+    "electron@44.9.0": true
   }
 }
