@@ -1,0 +1,51 @@
+{
+  "name": "frise-chronologique",
+  "version": "1.0.0",
+  "description": "Frise Chronologique Interactive - RAJ Editions",
+  "main": "main.js",
+  "author": "RAJ Editions",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^13.6.9",
+    "electron-builder": "^22.14.13",
+    "electron-packager": "^15.5.2"
+  },
+  "build": {
+    "appId": "com.rajeditions.frisechronologique",
+    "productName": "Frise Chronologique",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "index.html",
+      "icon.ico"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

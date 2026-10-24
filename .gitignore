@@ -1,0 +1,6 @@
+# Dépendances et sorties de build (régénérables)
+node_modules/
+frise-desktop/dist/
+frise-desktop/release/
+# Liens symboliques locaux vers .agents/skills
+.claude/skills/
