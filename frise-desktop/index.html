@@ -26,6 +26,9 @@
         .student-info input:hover { border: 1px dashed var(--border-light); }
         .student-info input:focus { border: 1px dashed var(--teal); outline: none; background: rgba(0,0,0,0.02); }
         .masthead-counter { font-size: 0.9rem; color: var(--slate); font-weight: 600; }
+        /* Bouton « Accueil » du lanceur des editeurs (blockly_ts_lanceur) : affiche seulement si la frise a ete ouverte depuis sa page d'accueil. */
+        .masthead-accueil { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; padding: 6px 10px; border: 1px solid var(--slate); color: var(--slate); font-weight: 600; font-size: 0.9rem; text-decoration: none; white-space: nowrap; transition: all 0.2s; }
+        .masthead-accueil:hover, .masthead-accueil:focus-visible { background: var(--slate); color: #fff; }
         .toolbar { display: flex; flex-wrap: wrap; gap: 15px; padding: 10px 30px; background: #fff; border-bottom: 1px solid var(--border-light); align-items: center; font-size: 0.9rem; }
         .toolbar-group { display: flex; align-items: center; gap: 8px; border-right: 1px solid var(--border-light); padding-right: 15px; }
         .toolbar-group:last-child { border-right: none; }
@@ -1008,6 +1011,43 @@ function drawAxisSVG() {
     function escapeHTML(str) { return !str ? '' : str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
 
     window.onload = init;
+</script>
+<script>
+// ---------- Bouton « Accueil » : retour a la page d'accueil du lanceur (blockly_ts_lanceur) ----------
+// La frise ouverte depuis la page d'accueil recoit l'adresse de retour :
+//  - ?lanceur=<port>  lanceur local : retour vers http://localhost:<port>/ ;
+//  - ?accueil=<url>   version en ligne : retour vers cette adresse, acceptee seulement sur jreynaud42000.github.io
+//                     (ou localhost) pour qu'un lien exterieur ne puisse pas detourner le bouton.
+// L'adresse est gardee pour l'onglet (sessionStorage). Ouverte autrement (fichier, application Windows), pas de bouton.
+(function () {
+    function adresseAccueil() {
+        const parametres = new URLSearchParams(location.search);
+        const port = parametres.get('lanceur');
+        if (/^\d{2,5}$/.test(port || '')) return 'http://localhost:' + port + '/';
+        try {
+            const url = new URL(parametres.get('accueil') || '');
+            const local = url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname);
+            if (local || (url.protocol === 'https:' && url.hostname === 'jreynaud42000.github.io')) return url.href;
+        } catch (e) { /* parametre absent ou adresse invalide */ }
+        return null;
+    }
+    let adresse = adresseAccueil();
+    try {
+        if (adresse) sessionStorage.setItem('accueilLanceur', adresse);
+        else adresse = sessionStorage.getItem('accueilLanceur');
+    } catch (e) { /* stockage refuse : bouton seulement si le parametre est la */ }
+    const entete = document.querySelector('.masthead');
+    if (!adresse || !entete || document.getElementById('masthead-accueil')) return;
+    const lien = document.createElement('a');
+    lien.id = 'masthead-accueil';
+    lien.className = 'masthead-accueil';
+    lien.href = adresse;
+    lien.title = "Revenir à l'accueil : choix de l'éditeur";
+    lien.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>' +
+        '<span>Accueil</span>';
+    entete.insertBefore(lien, entete.firstChild);
+})();
 </script>
 </body>
 </html>
