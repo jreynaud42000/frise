@@ -6,11 +6,11 @@ Agis en tant que développeur front-end expert. Crée une application web de fri
 ## 1. Design & identité visuelle
 - **Typographie** : Lora (serif) pour les titres, Source Sans 3 pour l'interface.
 - **Palette** : teal `#3a7d76`, bordeaux `#8c2b35`, rouille `#b5451e`, or `#c8922a`, ardoise `#4a5568`, olive `#5c6e2e`, prune `#6b3f5e`, bleu nuit `#2c4a5e`.
-- **Fonds** : principal crème (`#f0ece1`), bande horizontale centrale (`#e2ddcf`), blanc pour toolbar/modales ; masthead orange `#ff5501` (charte Technologie Services, comme le bandeau des éditeurs Blockly), textes et champs en blanc.
+- **Fonds** : principal crème (`#f0ece1`), bande horizontale centrale (`#e2ddcf`), blanc pour toolbar/modales ; masthead en dégradé vert d'eau `#1f9e8f` vers violet `#6a2c91` avec filet magenta `#e0218a` (charte Educatech, comme le bandeau des éditeurs Easybloc), textes et champs en blanc.
 - **Style UI** : élégant, éditorial, boutons typographiques sans bordures arrondies (hors carte « état vide »).
 
 ## 2. En-tête (masthead)
-- À gauche : logo Technologie Services (`<img class="masthead-logo">` en base64, **léger** — `logo_ts.png` 360×100, environ 19 Ko ; pas de PNG de plusieurs centaines de Ko) sur une pastille blanche aux coins arrondis, comme dans les éditeurs. Aucune mention de copyright. L'export PNG / PDF dessine ce même logo (`.masthead-logo`).
+- À gauche : logo Technologie Services (`<img class="masthead-logo">` en base64, **léger** — `logo_ts.png` 360×100, environ 19 Ko ; pas de PNG de plusieurs centaines de Ko) sans pastille, couleurs d'origine, comme dans les éditeurs. Aucune mention de copyright. L'export PNG / PDF dessine ce même logo (`.masthead-logo`).
 - Centre : grand titre éditable au clic (`contenteditable`), et dessous trois champs discrets alignés « Nom », « Prénom », « Classe » (fond transparent, bordure visible au survol/focus).
 - À droite : compteur dynamique du nombre d'éléments (les césures ne comptent pas).
 
