@@ -101,7 +101,7 @@
         .card-date { font-size: 0.75rem; color: var(--slate); font-weight: 600; margin-bottom: 2px; }
         .card-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 4px; line-height: 1.25; color: var(--text-main); }
         .card-desc { font-size: 0.75rem; color: #4a5568; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .cesure-hitbox { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; cursor: pointer; z-index: 10; }
+        .cesure-hitbox { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 56px; height: 40px; cursor: pointer; z-index: 10; }
         .cesure-hitbox:hover { background: rgba(106, 44, 145, 0.1); border-radius: 4px; }
         /* Infobulle : seulement quand la carte coupe sa description, ou au survol du point ; filet de la couleur de la categorie */
         #tooltip { position: absolute; background: #fff; border: 1px solid var(--border-light); border-top: 3px solid var(--teal); border-radius: 4px; box-shadow: 0 10px 15px rgba(0,0,0,0.1); padding: 12px; width: 260px; pointer-events: none; opacity: 0; z-index: 100; transition: opacity 0.2s; }
@@ -278,7 +278,7 @@
                 <ul class="help-list">
                     <li><b>Se déplacer :</b> cliquez et glissez sur le fond de la frise pour la faire défiler.</li>
                     <li><b>Ajouter un élément :</b> cliquez sur « Ajouter » ou double-cliquez sur l'axe : l'année est pré-remplie selon l'endroit cliqué.</li>
-                    <li><b>Modifier ou supprimer :</b> cliquez sur le crayon qui apparaît au survol d'une carte, ou double-cliquez sur une carte, un point ou le zigzag d'une césure.</li>
+                    <li><b>Modifier ou supprimer :</b> cliquez sur le crayon qui apparaît au survol d'une carte, ou double-cliquez sur une carte, un point ou la partie en pointillés d'une césure.</li>
                 </ul>
 
                 <h3 class="help-section-title">Déplacer une carte</h3>
@@ -299,7 +299,7 @@
 
                 <h3 class="help-section-title">Les césures</h3>
                 <ul class="help-list">
-                    <li>Une césure crée un <b>saut dans le temps</b> : elle masque une plage d'années sans événement. L'axe est raccourci et un zigzag marque la coupure.</li>
+                    <li>Une césure crée un <b>saut dans le temps</b> : elle masque une plage d'années sans événement. L'axe est raccourci : la partie coupée apparaît en pointillés, avec la durée masquée dans une pastille et les dates de début et de fin de part et d'autre.</li>
                 </ul>
 
                 <h3 class="help-section-title">Sauvegarde et export (menu Fichier)</h3>
@@ -332,7 +332,7 @@
                 <option value="cesure">Césure (saut de temps)</option>
             </select>
             <div class="modal-corps">
-                <p class="aide-cesure" id="aide-cesure" hidden>Une césure masque une plage d'années sans événement : l'axe est raccourci et un zigzag marque la coupure.</p>
+                <p class="aide-cesure" id="aide-cesure" hidden>Une césure masque une plage d'années sans événement : l'axe est raccourci, la partie coupée apparaît en pointillés avec la durée masquée.</p>
                 <div id="group-standard-fields">
                     <div class="form-group">
                         <label for="f-title">Titre <span class="req" aria-hidden="true">*</span></label>
@@ -411,7 +411,8 @@
     const COLOR_NAMES = { '#3a7d76': 'Vert sarcelle', '#8c2b35': 'Bordeaux', '#b5451e': 'Rouille', '#c8922a': 'Or', '#4a5568': 'Ardoise', '#5c6e2e': 'Olive', '#6b3f5e': 'Prune', '#2c4a5e': 'Bleu nuit' };
     const MONTHS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
     const MARGIN_X = 80;
-    const BREAK_W = 30;                              // largeur d'une césure sur l'axe (px)
+    const BREAK_W = 56;                              // largeur d'une césure sur l'axe (px)
+    const LABEL_CHAR_W = 7.2;                        // largeur moyenne d'un caractère des étiquettes de l'axe (12 px, Inter 600)
     const CARD_GAP = 8;                              // espace minimal entre deux cartes (px)
     const MIN_OFFSET = { top: 20, bottom: 48 };      // sous l'axe, la carte laisse lisibles les années des graduations
     const DRAG_THRESHOLD = 5;                        // px avant de considérer un clic comme un glissement
@@ -516,28 +517,31 @@
         let breaks = events.filter(e => e.type === 'cesure' && e.end && e.end.y).map(e => {
             let s = getFractionalYear(e.start.y, e.start.m, e.start.d);
             let endFrac = getFractionalYear(e.end.y, e.end.m, e.end.d);
-            return { s: Math.min(s, endFrac), e: Math.max(s, endFrac), ids: [e.id] };
+            const ordered = s <= endFrac;
+            return { s: Math.min(s, endFrac), e: Math.max(s, endFrac), ids: [e.id],
+                sLabel: formatDate(ordered ? e.start : e.end), eLabel: formatDate(ordered ? e.end : e.start) };
         });
 
         breaks.sort((a,b) => a.s - b.s);
         let merged = [];
         if(breaks.length > 0) {
-            let curr = {s: breaks[0].s, e: breaks[0].e, ids: [...breaks[0].ids]};
+            let curr = { ...breaks[0], ids: [...breaks[0].ids] };
             for(let i=1; i<breaks.length; i++) {
                 if(breaks[i].s <= curr.e) {
-                    curr.e = Math.max(curr.e, breaks[i].e);
+                    if (breaks[i].e > curr.e) { curr.e = breaks[i].e; curr.eLabel = breaks[i].eLabel; }
                     curr.ids.push(breaks[i].ids[0]);
                 } else {
                     merged.push(curr);
-                    curr = {s: breaks[i].s, e: breaks[i].e, ids: [...breaks[i].ids]};
+                    curr = { ...breaks[i], ids: [...breaks[i].ids] };
                 }
             }
             merged.push(curr);
         }
 
+        // Césure coupée par la période affichée : la date affichée devient la borne de la période.
         merged.forEach(b => {
-            b.s = Math.max(b.s, view.minYear);
-            b.e = Math.min(b.e, view.maxYear);
+            if (b.s < view.minYear) { b.s = view.minYear; b.sLabel = formatYear(view.minYear); }
+            if (b.e > view.maxYear) { b.e = view.maxYear; b.eLabel = formatYear(view.maxYear); }
         });
         scaleMap.mergedBreaks = merged.filter(b => b.s < b.e);
 
@@ -564,7 +568,7 @@
         for (let b of scaleMap.mergedBreaks) {
             if (year <= b.s) {
                 return x + (year - currentY) * scaleMap.pxPerYear;
-            } else if (year <= b.e) {
+            } else if (year < b.e) {
                 return x + (b.s - currentY) * scaleMap.pxPerYear + BREAK_W / 2;
             } else {
                 x += (b.s - currentY) * scaleMap.pxPerYear + BREAK_W;
@@ -639,8 +643,26 @@
         scheduleAutosave();
     }
 
-    // Graduations communes à l'écran et aux exports. Une étiquette trop proche de la précédente (de part et d'autre
-    // d'une césure, par exemple) est omise ; son trait reste.
+    // Durée masquée par une césure, pour sa pastille : « 30 ans », « 4 mois », « 12 jours ».
+    function breakDuration(b) {
+        const d = b.e - b.s;
+        if (d >= 1) { const n = Math.round(d); return `${n} an${n > 1 ? 's' : ''}`; }
+        if (d * 12 >= 1) return `${Math.round(d * 12)} mois`;
+        const n = Math.max(1, Math.round(d * 365)); return `${n} jour${n > 1 ? 's' : ''}`;
+    }
+
+    // Césures telles qu'elles sont dessinées (écran et exports) : bords de la coupure, dates de début et de fin écrites
+    // vers l'extérieur (la date de début finit au bord gauche, celle de fin commence au bord droit : elles ne peuvent
+    // pas se chevaucher), durée masquée.
+    function breakDecor() {
+        return scaleMap.mergedBreaks.map(b => {
+            const bx = getCanvasX(b.s);
+            return { b, bx, ex: bx + BREAK_W, sLabel: b.sLabel, eLabel: b.eLabel, duration: breakDuration(b) };
+        });
+    }
+
+    // Graduations communes à l'écran et aux exports. Une étiquette qui toucherait la précédente ou une date de césure
+    // est omise ; son trait reste.
     function computeTicks() {
         const res = { minor: [], major: [] };
         if (view.maxYear - view.minYear <= 0) return res;
@@ -650,13 +672,18 @@
         for (let y = Math.ceil(view.minYear / sStep) * sStep; y <= view.maxYear; y += sStep) {
             if (!inBreak(y)) res.minor.push(getCanvasX(y));
         }
+        const blocked = [];
+        breakDecor().forEach(d => {
+            blocked.push([d.bx + 2 - d.sLabel.length * LABEL_CHAR_W, d.bx + 2]);
+            blocked.push([d.ex - 2, d.ex - 2 + d.eLabel.length * LABEL_CHAR_W]);
+        });
         let lastRight = -Infinity;
         for (let y = Math.ceil(view.minYear / pStep) * pStep; y <= view.maxYear; y += pStep) {
             if (inBreak(y)) continue;
             const x = getCanvasX(y);
             let label = y === 0 ? '' : formatYear(y);
-            const halfW = label.length * 3.6;
-            if (label && x - halfW < lastRight + 8) label = '';
+            const halfW = label.length * LABEL_CHAR_W / 2;
+            if (label && (x - halfW < lastRight + 8 || blocked.some(([l, r]) => x - halfW < r + 8 && x + halfW > l - 8))) label = '';
             if (label) lastRight = x + halfW;
             res.major.push({ x, label });
         }
@@ -667,57 +694,40 @@
         const ticksGroup = $('axis-ticks');
         document.documentElement.style.setProperty('--axis-color', axisStyle.color);
         ticksGroup.innerHTML = '';
-
-        // Axe principal avec les zigzags : chacun couvre exactement la zone compressée [bx, bx+BREAK_W] (voir getCanvasX).
-        let pathD = `M ${MARGIN_X},50 `;
-        scaleMap.mergedBreaks.forEach(b => {
-            let bx = getCanvasX(b.s);
-            pathD += `L ${bx},50 L ${bx + 10},35 L ${bx + 20},65 L ${bx + BREAK_W},50 `;
-        });
-        pathD += `L ${elTimeline.offsetWidth - MARGIN_X},50`;
-
         const svgNS = "http://www.w3.org/2000/svg";
-        let pathEl = document.createElementNS(svgNS, "path");
-        pathEl.setAttribute('d', pathD);
-        pathEl.setAttribute('fill', 'none');
-        pathEl.setAttribute('stroke', axisStyle.color);
-        pathEl.setAttribute('stroke-width', axisStyle.width);
+        const svgEl = (tag, attrs) => { const el = document.createElementNS(svgNS, tag); Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v)); ticksGroup.appendChild(el); return el; };
+        const axisText = (x, label, anchor) => {
+            const t = svgEl('text', { x, y: '85%', 'text-anchor': anchor, fill: axisStyle.color, 'font-size': '12px', 'font-weight': '600', 'font-family': 'Inter, Segoe UI, Arial, sans-serif',
+                'paint-order': 'stroke', stroke: 'var(--bg-band)', 'stroke-width': '4', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+            t.textContent = label;
+        };
+
+        // Axe principal, interrompu sur chaque césure [bx, bx+BREAK_W] (voir getCanvasX) : la césure est dessinée à part.
+        const decor = breakDecor();
+        let pathD = `M ${MARGIN_X},50 `;
+        decor.forEach(d => { pathD += `L ${d.bx},50 M ${d.ex},50 `; });
+        pathD += `L ${elTimeline.offsetWidth - MARGIN_X},50`;
+        const pathEl = svgEl('path', { d: pathD, fill: 'none', stroke: axisStyle.color, 'stroke-width': axisStyle.width });
         if(axisStyle.dash) pathEl.setAttribute('stroke-dasharray', axisStyle.dash);
         if(axisStyle.arrow !== 'none') pathEl.setAttribute('marker-end', `url(#arrow-${axisStyle.arrow})`);
-        ticksGroup.appendChild(pathEl);
 
         const ticks = computeTicks();
-        ticks.minor.forEach(x => {
-            let lineEl = document.createElementNS(svgNS, "line");
-            lineEl.setAttribute('x1', x); lineEl.setAttribute('y1', '40%');
-            lineEl.setAttribute('x2', x); lineEl.setAttribute('y2', '60%');
-            lineEl.setAttribute('stroke', axisStyle.color);
-            lineEl.setAttribute('stroke-width', '1');
-            lineEl.setAttribute('opacity', '0.4');
-            ticksGroup.appendChild(lineEl);
-        });
+        ticks.minor.forEach(x => svgEl('line', { x1: x, y1: '40%', x2: x, y2: '60%', stroke: axisStyle.color, 'stroke-width': 1, opacity: 0.4 }));
         ticks.major.forEach(t => {
-            let lineEl = document.createElementNS(svgNS, "line");
-            lineEl.setAttribute('x1', t.x); lineEl.setAttribute('y1', '25%');
-            lineEl.setAttribute('x2', t.x); lineEl.setAttribute('y2', '75%');
-            lineEl.setAttribute('stroke', axisStyle.color);
-            lineEl.setAttribute('stroke-width', Math.max(2, axisStyle.width-1));
-            ticksGroup.appendChild(lineEl);
-            if (!t.label) return;
-            let text = document.createElementNS(svgNS, "text");
-            text.setAttribute('x', t.x); text.setAttribute('y', '85%');
-            text.setAttribute('text-anchor', 'middle');
-            text.setAttribute('fill', axisStyle.color);
-            text.setAttribute('font-size', '12px');
-            text.setAttribute('font-weight', '600');
-            text.setAttribute('font-family', 'Inter, Segoe UI, Arial, sans-serif');
-            text.setAttribute('paint-order', 'stroke');
-            text.setAttribute('stroke', 'var(--bg-cream)');
-            text.setAttribute('stroke-width', '4');
-            text.setAttribute('stroke-linecap', 'round');
-            text.setAttribute('stroke-linejoin', 'round');
-            text.textContent = t.label;
-            ticksGroup.appendChild(text);
+            svgEl('line', { x1: t.x, y1: '25%', x2: t.x, y2: '75%', stroke: axisStyle.color, 'stroke-width': Math.max(2, axisStyle.width-1) });
+            if (t.label) axisText(t.x, t.label, 'middle');
+        });
+
+        // Césure : axe en pointillés, un trait à chaque bord, dates de début et de fin vers l'extérieur, pastille de durée.
+        decor.forEach(d => {
+            svgEl('line', { x1: d.bx, y1: 50, x2: d.ex, y2: 50, stroke: axisStyle.color, 'stroke-width': axisStyle.width, 'stroke-dasharray': '2 4', 'stroke-linecap': 'round' });
+            [d.bx, d.ex].forEach(x => svgEl('line', { x1: x, y1: 42, x2: x, y2: 58, stroke: axisStyle.color, 'stroke-width': 2 }));
+            axisText(d.bx + 2, d.sLabel, 'end');
+            axisText(d.ex - 2, d.eLabel, 'start');
+            const c = (d.bx + d.ex) / 2, w = d.duration.length * 6.2 + 14;
+            svgEl('rect', { x: c - w / 2, y: 20, width: w, height: 17, rx: 8.5, fill: '#6a2c91' });
+            const t = svgEl('text', { x: c, y: 32, 'text-anchor': 'middle', fill: '#fff', 'font-size': '11px', 'font-weight': '600', 'font-family': 'Inter, Segoe UI, Arial, sans-serif' });
+            t.textContent = d.duration;
         });
     }
 
@@ -1405,10 +1415,13 @@
             }
         });
 
+        // Comme à l'écran : l'axe occupe une bande de 100 px centrée ; ay(p) donne l'ordonnée à p % de cette bande.
+        const ay = p => height / 2 - 50 + p * 100;
+        const decor = breakDecor();
         ctx.strokeStyle = axisStyle.color; ctx.lineWidth = axisStyle.width;
         if(axisStyle.dash) ctx.setLineDash(axisStyle.dash.split(',').map(Number)); else ctx.setLineDash([]);
         ctx.beginPath(); ctx.moveTo(MARGIN_X, height/2);
-        scaleMap.mergedBreaks.forEach(b => { let bx = getCanvasX(b.s); ctx.lineTo(bx, height/2); ctx.lineTo(bx + 10, height/2 - 15); ctx.lineTo(bx + 20, height/2 + 15); ctx.lineTo(bx + BREAK_W, height/2); });
+        decor.forEach(d => { ctx.lineTo(d.bx, height/2); ctx.moveTo(d.ex, height/2); });
         ctx.lineTo(width - MARGIN_X, height/2); ctx.stroke(); ctx.setLineDash([]);
 
         if(axisStyle.arrow !== 'none') {
@@ -1420,16 +1433,30 @@
             ctx.fill();
         }
 
+        const axisLabel = (x, label, align) => {
+            ctx.textAlign = align; ctx.strokeStyle = '#e2ddcf'; ctx.lineWidth = 4; ctx.strokeText(label, x, ay(0.85)); ctx.fillStyle = axisStyle.color; ctx.fillText(label, x, ay(0.85));
+        };
         const ticks = computeTicks();
         ctx.strokeStyle = axisStyle.color; ctx.globalAlpha = 0.4; ctx.lineWidth = 1;
-        ticks.minor.forEach(x => { ctx.beginPath(); ctx.moveTo(x, height*0.4); ctx.lineTo(x, height*0.6); ctx.stroke(); });
-        ctx.globalAlpha = 1.0; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.font = `600 12px ${FONT}`; ctx.lineJoin = 'round';
+        ticks.minor.forEach(x => { ctx.beginPath(); ctx.moveTo(x, ay(0.4)); ctx.lineTo(x, ay(0.6)); ctx.stroke(); });
+        ctx.globalAlpha = 1.0; ctx.textBaseline = 'alphabetic'; ctx.font = `600 12px ${FONT}`; ctx.lineJoin = 'round';
         ticks.major.forEach(t => {
             ctx.strokeStyle = axisStyle.color; ctx.lineWidth = Math.max(2, axisStyle.width-1);
-            ctx.beginPath(); ctx.moveTo(t.x, height*0.25); ctx.lineTo(t.x, height*0.75); ctx.stroke();
-            if (!t.label) return;
-            ctx.strokeStyle = '#f0ece1'; ctx.lineWidth = 4; ctx.strokeText(t.label, t.x, height*0.85); ctx.fillStyle = axisStyle.color; ctx.fillText(t.label, t.x, height*0.85);
+            ctx.beginPath(); ctx.moveTo(t.x, ay(0.25)); ctx.lineTo(t.x, ay(0.75)); ctx.stroke();
+            if (t.label) axisLabel(t.x, t.label, 'center');
         });
+
+        // Césures (même dessin qu'à l'écran)
+        decor.forEach(d => {
+            ctx.strokeStyle = axisStyle.color; ctx.lineWidth = axisStyle.width; ctx.lineCap = 'round'; ctx.setLineDash([2, 4]);
+            ctx.beginPath(); ctx.moveTo(d.bx, height/2); ctx.lineTo(d.ex, height/2); ctx.stroke(); ctx.setLineDash([]); ctx.lineCap = 'butt';
+            ctx.lineWidth = 2; [d.bx, d.ex].forEach(x => { ctx.beginPath(); ctx.moveTo(x, height/2 - 8); ctx.lineTo(x, height/2 + 8); ctx.stroke(); });
+            ctx.font = `600 12px ${FONT}`; axisLabel(d.bx + 2, d.sLabel, 'right'); axisLabel(d.ex - 2, d.eLabel, 'left');
+            const c = (d.bx + d.ex) / 2, w = d.duration.length * 6.2 + 14;
+            ctx.fillStyle = '#6a2c91'; ctx.beginPath(); ctx.roundRect(c - w / 2, height/2 - 30, w, 17, 8.5); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.font = `600 11px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(d.duration, c, height/2 - 18);
+        });
+        ctx.textBaseline = 'top';
 
         const connections = document.querySelectorAll('.connection-line'); ctx.lineWidth = 2; ctx.setLineDash([3, 3]);
         connections.forEach(conn => {
