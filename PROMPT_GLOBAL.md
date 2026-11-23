@@ -4,21 +4,21 @@
 Agis en tant que développeur front-end expert. Crée une application web de frise chronologique interactive destinée à un usage scolaire (élèves/enseignants). Le livrable est **un fichier HTML unique et autonome** (HTML, CSS et JavaScript inline), **sans dépendance externe** (ni html2canvas, ni jsPDF, ni framework). Seules les polices Google Fonts sont autorisées. L'app doit ensuite pouvoir être empaquetée en application Windows (.exe) via Electron.
 
 ## 1. Design & identité visuelle
-- **Typographie** : Lora (serif) pour les titres, Source Sans 3 pour l'interface.
+- **Typographie** : une seule famille, **Inter** (Google Fonts), pour les titres, l'interface et les exports, comme les éditeurs EasyBloc. **Aucun emoji** : icônes SVG au trait (`<symbol>` réutilisés par `<use href="#i-…">`).
 - **Palette** : teal `#3a7d76`, bordeaux `#8c2b35`, rouille `#b5451e`, or `#c8922a`, ardoise `#4a5568`, olive `#5c6e2e`, prune `#6b3f5e`, bleu nuit `#2c4a5e`.
-- **Fonds** : principal crème (`#f0ece1`), bande horizontale centrale (`#e2ddcf`), blanc pour toolbar/modales ; masthead en dégradé vert d'eau `#1f9e8f` vers violet `#6a2c91` sans filet (charte Educatech, comme le bandeau des éditeurs Easybloc), textes et champs en blanc.
-- **Style UI** : élégant, éditorial, boutons typographiques sans bordures arrondies (hors carte « état vide »).
+- **Fonds** : principal crème (`#f0ece1`), bande horizontale centrale (`#e2ddcf`), blanc pour la bande du titre, les modales et le pied de page ; bandeau d'outils en dégradé vert d'eau `#1f9e8f` vers violet `#6a2c91` sans filet (charte Educatech, comme le bandeau des éditeurs Easybloc). Le violet `#6a2c91` sert d'accent (bouton principal, onglet actif, focus).
+- **Style UI** : celui du bandeau EasyBloc — bandeau de 44 px, boutons transparents à texte blanc de 13 px, arrondi de 4 px, menu déroulant blanc ; dans les fenêtres, boutons de 34 px arrondis à 4 px, fenêtre arrondie à 8 px avec titre sur fond dégradé.
 
-## 2. En-tête (masthead)
+## 2. En-tête : bandeau d'outils puis bande du titre (variante A, choisie le 23/11/2026)
 - À gauche : logo Technologie Services (`<img class="masthead-logo">` en base64, **léger** — `logo_ts.png` 360×100, environ 19 Ko ; pas de PNG de plusieurs centaines de Ko) sans pastille, couleurs d'origine, comme dans les éditeurs. Aucune mention de copyright. L'export PNG / PDF dessine ce même logo (`.masthead-logo`).
-- Centre : grand titre éditable au clic (`contenteditable`), et dessous trois champs discrets alignés « Nom », « Prénom », « Classe » (fond transparent, bordure visible au survol/focus).
-- À droite : compteur dynamique du nombre d'éléments (les césures ne comptent pas).
+- Bandeau d'outils (dégradé) : logo, menu « Fichier », bouton « Ajouter » (blanc), période, zoom, graduations, « Style de l'axe », « Aide » à droite. Sous 1100 px de large, il passe sur plusieurs lignes au lieu de déborder.
+- Bande blanche dessous : titre éditable au clic (`contenteditable`, une ligne, texte d'invite quand il est vide), champs « Nom », « Prénom », « Classe » avec libellés visibles, compteur d'éléments (« 1 élément », « 11 éléments » ; les césures ne comptent pas).
 
-## 3. Barre d'outils
-- Plage d'années « De / À » + bouton « Appliquer ».
-- Zoom : « − », « + », « Ajuster » (zoom automatique = largeur de l'écran, recalculé à chaque ajout/modification/redimensionnement).
-- Échelles primaire et secondaire : « Auto » ou valeurs fixes (1, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000 ans).
-- Actions : « ❓ Aide », « ✎ Style axe », « + Ajouter », « 💾 Sauvegarder », « 📂 Ouvrir », « 🗑️ Effacer » (avec confirmation), « Export PNG », « Export PDF ».
+## 3. Bandeau d'outils
+- Période « De / À » + « Appliquer » (ou Entrée) : refusée avec un message si une année manque ou si la première n'est pas antérieure à la seconde. Les éléments hors de la période ne sont pas dessinés et un message en indique le nombre.
+- Zoom : « − », « + », « Ajuster » (la période couvre tous les éléments avec une marge de 5 %, et la frise prend la largeur de l'écran). Ajouter un élément hors de la période l'élargit juste assez pour le montrer.
+- Graduations principales dans le bandeau ; graduations secondaires dans la fenêtre « Style de l'axe » : « Auto » ou valeurs fixes (1, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000 ans).
+- Menu « Fichier » : Ouvrir… (Ctrl+O), Sauvegarder (Ctrl+S), Exporter en image (PNG), Imprimer ou enregistrer en PDF, Effacer la frise… (avec confirmation). Navigation au clavier (flèches, Échap).
 
 ## 4. Axe et zone de dessin
 - Zone scrollable déplaçable par cliquer-glisser sur le fond.
@@ -32,22 +32,24 @@ Trois types : **événement ponctuel**, **période**, **césure**.
 - Événement : point coloré sur l'axe (zone de clic élargie autour du point visible), ligne d'attache verticale en pointillés de la couleur de la catégorie, carte avec bordure supérieure colorée, image redimensionnable, date complète formatée, titre, description. Position haut/bas/auto (alternance), alignement gauche/centre/droite.
 - Période : idem + bande colorée semi-transparente sur l'axe.
 - **Césure (saut de temps)** : plage début→fin compressée sur l'axe en une largeur fixe de **30 px** avec un symbole de rupture en zigzag couvrant **exactement** la zone compressée `[bx, bx+30]`. Les césures qui se chevauchent sont fusionnées ; les graduations situées dans une césure sont masquées ; l'échelle (px/an) et le zoom auto tiennent compte de l'espace gagné ; double-clic sur le symbole pour modifier. Une césure n'a ni carte, ni point, ni entrée de légende.
-- **Infobulle personnalisée** au survol (carte ou point) : image, date complète, titre, description intégrale ; positionnée près du curseur avec retournement aux bords de l'écran.
-- Icône ✎ visible au survol d'une carte. Tout texte injecté dans le DOM est **échappé** (titre, description, catégorie).
+- **Infobulle** : au survol d'un point, et au survol d'une carte seulement si sa description y est coupée (sinon elle répéterait la carte) ; filet supérieur de la couleur de la catégorie.
+- Crayon (bouton rond de la couleur de la catégorie) visible au survol d'une carte : un clic ouvre la modification. Tout texte injecté dans le DOM est **échappé** (titre, description, catégorie).
 
 ## 6. Interactions avancées
 - Seuil de mouvement (~3–5 px) pour distinguer clic et glissement (ne doit pas bloquer le double-clic).
 - Double-clic dans le vide : crée un élément à l'année survolée. Double-clic sur une carte, un point ou une césure : édition.
 - État vierge : axe en filigrane (opacité 40 %) + grand encadré cliquable (simple clic) pour ajouter le premier événement.
 - Redimensionnement d'image : poignée en bas à droite, dimensions sauvegardées dans l'objet.
-- Glisser vertical sur une carte : modifie sa distance à l'axe (la ligne d'attache suit en direct).
+- Le glisser ne démarre qu'au clic gauche (un clic droit n'accroche plus la carte au curseur). La direction est fixée au début du geste : vertical = distance à l'axe seulement (la date ne change pas), horizontal = date seulement.
 - Glisser horizontal : déplace la date en direct avec **aimantation selon la précision d'origine** (année seule → année entière ; mois → mois ; jour → jour).
-- **Dates exactes** : conversion date ↔ année décimale via de vraies dates calendaires (`Date.UTC`, années bissextiles, mois de longueur variable). Aucune approximation du type « 30,416 jours/mois » (sinon dates invalides comme « 31 février »).
+- **Placement sans chevauchement** : à l'affichage, chaque carte qui en chevauche une autre du même côté est éloignée de l'axe par paliers ; en position « automatique », elle va du côté où elle s'éloigne le moins. Le réglage manuel de la distance sert de point de départ. Sous l'axe, une carte laisse au moins 48 px pour les années des graduations ; les étiquettes de graduation trop proches (autour d'une césure) sont omises. Pour une période, la carte s'attache au début, au milieu ou à la fin selon l'alignement.
+- **Dates exactes** : conversion date ↔ année décimale via de vraies dates calendaires (années bissextiles, mois de longueur variable), avec `setUTCFullYear` (et non `Date.UTC`, qui lit les années 0 à 99 comme 1900 à 1999). Mois en minuscules, « 1er » pour le premier jour, années négatives affichées « 44 av. J.-C. » ; l'année 0 est refusée.
 
 ## 7. Modales et sauvegarde
-- Modale d'édition : type, titre, début (J/M/A), fin (J/M/A pour période et césure), description, image (upload ou glisser-déposer, base64), catégorie (pastilles de couleur + nom), position, alignement, bouton Supprimer. Pour une césure : seuls type + dates début/fin sont affichés ; fin obligatoire et postérieure au début.
+- Modale d'édition : onglets Événement / Période / Césure, titre, date ou début (J/M/A), fin (période et césure), description, image (PNG, JPEG, GIF ou WebP, réduite à 1000 px de côté à l'import), catégorie (pastilles nommées pour les lecteurs d'écran + nom), position, alignement, bouton Supprimer. Pour une césure : seules les dates, avec une phrase d'explication. **Erreurs sous le champ concerné** (pas d'alerte du navigateur) : titre manquant, année manquante ou 0, jour sans mois ou hors du mois, fin antérieure au début. Légende « * champ obligatoire ».
 - Modale « Aide » : guide d'utilisation (navigation, glisser-déposer, césures, sauvegarde/export).
-- « Sauvegarder » télécharge un `.json` (événements, style d'axe, vue/zoom/bornes, titre, infos élève) ; « Ouvrir » recharge et régénère la frise.
+- « Sauvegarder » télécharge un `.json` (événements, style d'axe, vue/zoom/bornes, titre, infos élève) ; « Ouvrir » le recharge **après contrôle champ par champ** (`sanitizeData`) : seuls des textes, des nombres, des couleurs `#rrggbb` et des images `data:image/(png|jpeg|gif|webp);base64` sont repris, pour qu'un fichier modifié ne puisse pas exécuter de code.
+- **Sauvegarde automatique** dans le navigateur (`localStorage`, clé `frise_chronologique_v1`), restaurée à l'ouverture avec un message. Avertissement avant de quitter seulement si cette sauvegarde a échoué (jamais dans l'application Windows, où il bloquerait la fermeture sans message).
 - Légende en pied de page : pastilles des catégories utilisées (masquée si aucune).
 
 ## 8. Moteur d'export natif (sans bibliothèque)
