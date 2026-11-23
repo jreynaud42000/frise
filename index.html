@@ -71,7 +71,7 @@
 
         .timeline-container { flex-grow: 1; position: relative; background: var(--bg-cream); overflow: hidden; display: flex; align-items: center; }
         .central-band { position: absolute; top: 50%; left: 0; right: 0; height: 300px; transform: translateY(-50%); background: var(--bg-band); z-index: 0; }
-        .scroll-area { position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow-x: auto; overflow-y: hidden; cursor: grab; z-index: 1; }
+        .scroll-area { position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: auto; cursor: grab; z-index: 1; touch-action: none; user-select: none; -webkit-user-select: none; }
         .scroll-area:active { cursor: grabbing; }
         .timeline-canvas { position: relative; height: 100%; min-width: 100%; transform-origin: left center; }
         .axis-hitbox { position: absolute; top: calc(50% - 20px); left: 0; width: 100%; height: 40px; cursor: crosshair; z-index: 2; }
@@ -102,7 +102,8 @@
         .card-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 4px; line-height: 1.25; color: var(--text-main); }
         .card-desc { font-size: 0.75rem; color: #4a5568; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .cesure-hitbox { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 56px; height: 40px; cursor: pointer; z-index: 10; }
-        .cesure-hitbox:hover { background: rgba(106, 44, 145, 0.1); border-radius: 4px; }
+        .cesure-hitbox:hover, .cesure-hitbox:focus-visible { background: rgba(106, 44, 145, 0.1); border-radius: 4px; }
+        .cesure-hitbox:focus-visible { outline: 2px solid var(--violet); }
         /* Infobulle : seulement quand la carte coupe sa description, ou au survol du point ; filet de la couleur de la categorie */
         #tooltip { position: absolute; background: #fff; border: 1px solid var(--border-light); border-top: 3px solid var(--teal); border-radius: 4px; box-shadow: 0 10px 15px rgba(0,0,0,0.1); padding: 12px; width: 260px; pointer-events: none; opacity: 0; z-index: 100; transition: opacity 0.2s; }
         #tooltip img { max-width: 100%; height: auto; margin-bottom: 8px; }
@@ -165,6 +166,15 @@
         .help-section-title { color: var(--violet); font-size: 1rem; font-weight: 700; margin-top: 12px; margin-bottom: 8px; border-bottom: 1px solid var(--border-light); padding-bottom: 4px; }
 
         /* Ecrans etroits : le bandeau passe sur plusieurs lignes plutot que de deborder */
+        /* Écran tactile sans survol : le crayon reste visible (le double-clic n'existe pas au doigt) */
+        @media (hover: none) { .edit-icon { opacity: 1; } }
+        /* Téléphone : les champs de l'élève se partagent la largeur au lieu de déborder */
+        @media (max-width: 600px) {
+            .student-info { flex-wrap: wrap; width: 100%; }
+            .student-info label { flex: 1 1 90px; }
+            .student-info input, .student-info input#info-classe { width: 100%; }
+            .bande-titre { padding: 8px 12px; }
+        }
         @media (max-width: 1100px) {
             .masthead { flex-wrap: wrap; row-gap: 4px; }
             .bande-titre { flex-wrap: wrap; gap: 8px 16px; }
@@ -244,7 +254,6 @@
         <div class="masthead-counter"><span id="event-count">0</span> <span id="event-count-label">élément</span></div>
     </div>
     <div class="timeline-container" id="timeline-container">
-        <div class="central-band" id="central-band"></div>
         <p class="hors-plage" id="hors-plage" role="status" hidden></p>
         <button type="button" class="empty-state" id="empty-state">
             <span class="empty-titre">Votre frise est prête</span>
@@ -252,6 +261,7 @@
         </button>
         <div class="scroll-area" id="scroll-area">
             <div class="timeline-canvas" id="timeline-canvas">
+                <div class="central-band" id="central-band"></div>
                 <div class="axis-hitbox" title="Double-cliquez ici pour ajouter un événement"></div>
                 <svg class="axis-svg" id="axis-svg" preserveAspectRatio="none">
                     <defs>
@@ -437,7 +447,6 @@
     const elElementsLayer = document.getElementById('elements-layer');
     const elScroll = document.getElementById('scroll-area');
     const elEmpty = document.getElementById('empty-state');
-    const elCentralBand = document.getElementById('central-band');
     const elTitle = document.querySelector('.masthead-title');
     const $ = id => document.getElementById(id);
 
@@ -626,9 +635,9 @@
         $('event-count').textContent = n;
         $('event-count-label').textContent = n > 1 ? 'éléments' : 'élément';
         if (events.length === 0) {
-            elEmpty.style.display = ''; elTimeline.style.opacity = '0.4'; elCentralBand.style.opacity = '0.4';
+            elEmpty.style.display = ''; elTimeline.style.opacity = '0.4';
         } else {
-            elEmpty.style.display = 'none'; elTimeline.style.opacity = '1'; elCentralBand.style.opacity = '1';
+            elEmpty.style.display = 'none'; elTimeline.style.opacity = '1';
         }
         if (view.autoZoom) {
             if(view.minYear >= view.maxYear) view.maxYear = view.minYear + 10;
@@ -636,6 +645,8 @@
             view.zoomLevel = containerWidth > 0 ? containerWidth : 1000;
         }
         elTimeline.style.width = view.zoomLevel + 'px';
+        // Zoom « ajusté » : la frise tient dans la largeur ; la barre verticale éventuelle ne doit pas créer de défilement horizontal.
+        elScroll.style.overflowX = view.autoZoom ? 'hidden' : 'auto';
         computeScale();
         drawAxisSVG();
         renderElements();
@@ -804,7 +815,10 @@
                 items.push({ ev, card, line });
             } catch(err) { console.error("Erreur", err); }
         });
-        layoutCards(items);
+        // Frise chargée : la zone de dessin grandit en hauteur (défilement vertical) plutôt que de couper des cartes.
+        const reach = layoutCards(items);
+        const h = Math.round(Math.max(elScroll.clientHeight / 2, reach + 24) * 2);
+        if (elTimeline.offsetHeight !== h) { elTimeline.style.height = h + 'px'; elScroll.scrollTop = (h - elScroll.clientHeight) / 2; }
 
         const notice = $('hors-plage');
         notice.hidden = hidden === 0;
@@ -813,7 +827,9 @@
         scaleMap.mergedBreaks.forEach(b => {
             let hit = document.createElement('div');
             hit.className = 'cesure-hitbox'; hit.style.left = (getCanvasX(b.s) + BREAK_W / 2) + 'px'; hit.title = "Césure (saut de temps) : double-cliquez pour modifier";
+            hit.tabIndex = 0; hit.setAttribute('role', 'button'); hit.setAttribute('aria-label', `Césure de ${b.sLabel} à ${b.eLabel} : modifier`);
             hit.addEventListener('dblclick', (e) => { e.stopPropagation(); openEventModal(b.ids[0]); });
+            hit.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEventModal(b.ids[0]); } });
             elElementsLayer.appendChild(hit);
         });
     }
@@ -823,7 +839,7 @@
     // « automatique », la carte va du côté où elle doit le moins s'éloigner de l'axe (alternance à égalité).
     function layoutCards(items) {
         const placed = { top: [], bottom: [] };
-        let alt = 0;
+        let alt = 0, reach = 0;
         const fit = (side, box, base) => {
             let off = base, moved = true;
             while (moved) {
@@ -850,10 +866,12 @@
             }
             const off = fit(side, box, base(side));
             placed[side].push({ left: box.left, right: box.right, h, off });
+            reach = Math.max(reach, off + h);
             if (side === 'top') { card.style.bottom = `calc(50% + ${off}px)`; line.style.bottom = '50%'; }
             else { card.style.top = `calc(50% + ${off}px)`; line.style.top = '50%'; }
             card.dataset.pos = side; card.dataset.offset = off; line.style.height = off + 'px';
         });
+        return reach;   // distance à l'axe de la carte la plus éloignée
     }
 
     function createPoint(ev, x) {
@@ -899,8 +917,10 @@
     function cleanNum(v, min, max, def) { const n = Number(v); return (v === '' || v == null || !isFinite(n)) ? def : Math.min(max, Math.max(min, n)); }
     function cleanDate(o) {
         o = (o && typeof o === 'object') ? o : {};
-        const y = cleanInt(o.y, -1000000, 1000000);
-        return { d: cleanInt(o.d, 1, 31), m: cleanInt(o.m, 1, 12), y: y === '0' ? '' : y };
+        const y = cleanInt(o.y, -1000000, 1000000), m = cleanInt(o.m, 1, 12);
+        let d = m ? cleanInt(o.d, 1, 31) : '';
+        if (d && y && Number(d) > daysInMonth(Number(y), Number(m))) d = '';   // « 31 février » : on garde le mois seul
+        return { d, m, y: y === '0' ? '' : y };
     }
 
     // Contrôle un fichier ouvert (ou la sauvegarde automatique) champ par champ : seuls des textes, des nombres, des
@@ -912,8 +932,10 @@
             if (!src || typeof src !== 'object') return;
             const type = ['event', 'period', 'cesure'].includes(src.type) ? src.type : null;
             if (!type) return;
-            const start = cleanDate(src.start); if (!start.y) return;
-            const end = type === 'event' ? {} : cleanDate(src.end); if (type !== 'event' && !end.y) return;
+            let start = cleanDate(src.start); if (!start.y) return;
+            let end = type === 'event' ? {} : cleanDate(src.end); if (type !== 'event' && !end.y) return;
+            // Période ou césure inversée : remise dans l'ordre
+            if (type !== 'event' && getFractionalYear(end.y, end.m, end.d) < getFractionalYear(start.y, start.m, start.d)) [start, end] = [end, start];
             let id = Number(src.id); if (!Number.isInteger(id) || id < 1 || used.has(id)) id = null; else used.add(id);
             out.push({
                 id, type, title: cleanText(src.title, 200) || (type === 'cesure' ? 'Césure' : 'Sans titre'), desc: cleanText(src.desc, 2000), start, end,
@@ -999,7 +1021,7 @@
         clearTimeout(bulleTimer); bulleTimer = setTimeout(() => { b.hidden = true; }, isError ? 7000 : 4000);
     }
 
-    let dragObj = { isDown: false, startX: 0, scrollLeft: 0, hasMoved: false };
+    let dragObj = { isDown: false, startX: 0, scrollLeft: 0, startY: 0, scrollTop: 0, hasMoved: false };
     let resizeObj = { isResizing: false, el: null, evId: null, startX: 0, startY: 0, startW: 0, startH: 0, hasMoved: false };
     let cardDragObj = { isDragging: false, el: null, lineEl: null, pointEl: null, bandEl: null, dateEl: null, evId: null, startX: 0, startY: 0, startOffset: 0, currentOffset: 0, isTop: true, startFrac: 0, durationFrac: 0, startX_canvas: 0, hasMoved: false, axis: null };
 
@@ -1008,7 +1030,7 @@
         $('btn-close-help').addEventListener('click', () => { $('modal-help').classList.remove('active'); });
         elEmpty.addEventListener('click', () => { let year = Math.round((view.minYear + view.maxYear) / 2) || 1; openEventModal(null, year); });
 
-        elScroll.addEventListener('mousedown', e => {
+        elScroll.addEventListener('pointerdown', e => {
             if (e.button !== 0) return;   // clic droit ou molette : la carte ne doit pas rester « accrochée » au curseur
             if (e.target.closest('.edit-icon')) return;
             if(e.target.classList.contains('resize-handle')) {
@@ -1026,10 +1048,10 @@
                 return;
             }
             if(e.target.closest('.cesure-hitbox') || e.target.closest('.axis-hitbox')) return;
-            dragObj.isDown = true; dragObj.hasMoved = false; dragObj.startX = e.pageX - elScroll.offsetLeft; dragObj.scrollLeft = elScroll.scrollLeft;
+            dragObj.isDown = true; dragObj.hasMoved = false; dragObj.startX = e.pageX - elScroll.offsetLeft; dragObj.scrollLeft = elScroll.scrollLeft; dragObj.startY = e.pageY; dragObj.scrollTop = elScroll.scrollTop;
         });
 
-        window.addEventListener('mousemove', e => {
+        window.addEventListener('pointermove', e => {
             if(resizeObj.isResizing) {
                 e.preventDefault(); const deltaX = e.pageX - resizeObj.startX; const deltaY = e.pageY - resizeObj.startY;
                 if (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD) resizeObj.hasMoved = true;
@@ -1063,10 +1085,11 @@
                 e.preventDefault(); const walk = (e.pageX - elScroll.offsetLeft - dragObj.startX) * 1.5;
                 if (Math.abs(walk) > DRAG_THRESHOLD) dragObj.hasMoved = true;
                 elScroll.scrollLeft = dragObj.scrollLeft - walk;
+                elScroll.scrollTop = dragObj.scrollTop - (e.pageY - dragObj.startY);
             }
         });
 
-        window.addEventListener('mouseup', () => {
+        const endDrag = () => {
             if(resizeObj.isResizing) {
                 resizeObj.isResizing = false;
                 if(resizeObj.hasMoved) { let ev = events.find(x => x.id === resizeObj.evId); if(ev) { ev.imgW = resizeObj.el.offsetWidth; ev.imgH = resizeObj.el.offsetHeight; updateUI(); } }
@@ -1079,7 +1102,9 @@
                 }
             }
             dragObj.isDown = false;
-        });
+        };
+        window.addEventListener('pointerup', endDrag);
+        window.addEventListener('pointercancel', endDrag);
 
         elScroll.addEventListener('dblclick', e => {
             if(e.target.closest('.event-card') || e.target.closest('.event-point') || e.target.closest('.cesure-hitbox')) return;
@@ -1121,7 +1146,7 @@
         $('btn-zoom-auto').addEventListener('click', () => { fitRangeToEvents(); view.autoZoom = true; updateUI(); });
         $('scale-primary').addEventListener('change', e => { view.primaryScale = e.target.value; updateUI(); });
         $('scale-secondary').addEventListener('change', e => { view.secondaryScale = e.target.value; updateUI(); });
-        window.addEventListener('resize', () => { if(view.autoZoom) updateUI(); });
+        window.addEventListener('resize', updateUI);
 
         $('btn-add-event').addEventListener('click', () => openEventModal());
         $('btn-cancel-event').addEventListener('click', closeModals);
