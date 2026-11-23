@@ -20,6 +20,7 @@
     },
     "files": [
       "main.js",
+      "preload.js",
       "index.html",
       "icon.ico"
     ],
@@ -45,7 +46,16 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
-    }
+    },
+    "fileAssociations": [
+      {
+        "ext": "frise",
+        "name": "Frise chronologique",
+        "description": "Frise chronologique",
+        "icon": "icon.ico",
+        "role": "Editor"
+      }
+    ]
   },
   "allowScripts": {
     "electron@44.9.0": true

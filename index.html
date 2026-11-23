@@ -241,7 +241,7 @@
         </div>
         <button type="button" class="tb-btn" id="btn-axis-style"><svg class="ic" aria-hidden="true"><use href="#i-axe"/></svg>Style de l'axe</button>
         <div class="tb-droite"><button type="button" class="tb-btn" id="btn-help"><svg class="ic" aria-hidden="true"><use href="#i-aide"/></svg>Aide</button></div>
-        <input type="file" id="f-load-data" accept=".json,application/json" hidden>
+        <input type="file" id="f-load-data" accept=".frise,.json" hidden>
         <div class="tb-bulle" id="tb-bulle" role="status" aria-live="polite" hidden></div>
     </header>
     <div class="bande-titre">
@@ -315,8 +315,8 @@
                 <h3 class="help-section-title">Sauvegarde et export (menu Fichier)</h3>
                 <ul class="help-list">
                     <li><b>Sauvegarde automatique :</b> la frise est gardée dans ce navigateur et revient à la prochaine ouverture. Elle ne remplace pas un fichier de sauvegarde.</li>
-                    <li><b>Sauvegarder :</b> télécharge un fichier <code>.json</code> contenant toute la frise.</li>
-                    <li><b>Ouvrir :</b> recharge une frise sauvegardée.</li>
+                    <li><b>Sauvegarder :</b> télécharge un fichier <code>.frise</code> contenant toute la frise (texte, dates, images, style de l'axe, informations de l'élève).</li>
+                    <li><b>Ouvrir :</b> recharge une frise sauvegardée (fichier <code>.frise</code>, ou ancien fichier <code>.json</code>).</li>
                     <li><b>Exporter en image :</b> crée une image PNG avec le logo, le titre et les informations de l'élève.</li>
                     <li><b>Imprimer ou enregistrer en PDF :</b> ouvre la fenêtre d'impression ; pour obtenir un fichier PDF, choisissez l'imprimante « Enregistrer au format PDF ».</li>
                 </ul>
@@ -905,11 +905,50 @@
         return { events, view, axisStyle, title: getTitle(), student: { nom: $('info-nom').value, prenom: $('info-prenom').value, classe: $('info-classe').value } };
     }
 
-    function saveTimelineData() {
-        const blob = new Blob([JSON.stringify(buildSaveData())], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = 'frise_sauvegarde.json'; document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    // Format de fichier .frise : signature « FRISE », numéro de format, puis les données compressées (gzip).
+    // Format 0 : données non compressées (navigateur sans CompressionStream). Les anciens .json restent lisibles.
+    const FILE_MAGIC = [0x46, 0x52, 0x49, 0x53, 0x45]; // « FRISE »
+    const FILE_FORMAT = 1;
+    const FILE_MAX_BYTES = 60 * 1024 * 1024;
+
+    async function encodeFrise(data) {
+        const bytes = new TextEncoder().encode(JSON.stringify(data));
+        let body = bytes, format = 0;
+        if (typeof CompressionStream === 'function') {
+            body = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+            format = FILE_FORMAT;
+        }
+        const out = new Uint8Array(FILE_MAGIC.length + 1 + body.length);
+        out.set(FILE_MAGIC); out[FILE_MAGIC.length] = format; out.set(body, FILE_MAGIC.length + 1);
+        return out;
+    }
+
+    async function decodeFrise(buffer) {
+        const bytes = new Uint8Array(buffer);
+        if (bytes.length > FILE_MAX_BYTES) throw new Error('taille');
+        const signed = bytes.length > FILE_MAGIC.length && FILE_MAGIC.every((b, i) => bytes[i] === b);
+        if (!signed) return JSON.parse(new TextDecoder().decode(bytes));   // ancienne sauvegarde .json
+        const format = bytes[FILE_MAGIC.length], body = bytes.subarray(FILE_MAGIC.length + 1);
+        if (format === 0) return JSON.parse(new TextDecoder().decode(body));
+        if (format !== FILE_FORMAT) throw new Error('version');
+        if (typeof DecompressionStream !== 'function') throw new Error('navigateur');
+        const text = await new Response(new Blob([body]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+        if (text.length > FILE_MAX_BYTES * 4) throw new Error('taille');
+        return JSON.parse(text);
+    }
+
+    function fileNameFor(title) {
+        const base = title.normalize('NFD').replace(/\p{Mn}/gu, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 60);
+        return (base || 'frise_sauvegarde') + '.frise';
+    }
+
+    async function saveTimelineData() {
+        try {
+            const blob = new Blob([await encodeFrise(buildSaveData())], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = fileNameFor(getTitle()); document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (e) { showBulle("La sauvegarde n'a pas pu être créée.", true); }
     }
 
     function cleanText(v, max) { return typeof v === 'string' ? v.slice(0, max) : (typeof v === 'number' && isFinite(v) ? String(v) : ''); }
@@ -971,18 +1010,23 @@
         syncRangeInputs(); $('scale-primary').value = view.primaryScale; $('scale-secondary').value = view.secondaryScale;
     }
 
+    async function openFriseBuffer(buffer) {
+        try {
+            applyData(sanitizeData(await decodeFrise(buffer)));
+            updateUI();
+            const n = events.filter(ev => ev.type !== 'cesure').length;
+            showBulle(`Frise ouverte : ${n} ${n > 1 ? 'éléments' : 'élément'}.`);
+        } catch (err) {
+            showBulle(err && err.message === 'version' ? "Ce fichier vient d'une version plus récente de l'application. Mettez-la à jour pour l'ouvrir."
+                : err && err.message === 'navigateur' ? "Ce navigateur est trop ancien pour ouvrir ce fichier. Utilisez une version récente."
+                : "Ce fichier n'est pas une sauvegarde de frise lisible.", true);
+        }
+    }
+
     function loadTimelineData(event) {
-        const file = event.target.files[0]; if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                applyData(sanitizeData(JSON.parse(e.target.result)));
-                updateUI();
-                const n = events.filter(ev => ev.type !== 'cesure').length;
-                showBulle(`Frise ouverte : ${n} ${n > 1 ? 'éléments' : 'élément'}.`);
-            } catch (err) { showBulle("Ce fichier n'est pas une sauvegarde de frise lisible.", true); }
-        };
-        reader.readAsText(file); event.target.value = '';
+        const file = event.target.files[0]; event.target.value = ''; if (!file) return;
+        if (file.size > FILE_MAX_BYTES) { showBulle("Ce fichier est trop volumineux pour être une sauvegarde de frise.", true); return; }
+        file.arrayBuffer().then(openFriseBuffer, () => showBulle("Ce fichier n'a pas pu être lu.", true));
     }
 
     let autosaveTimer = null, autosaveFailed = false;
@@ -1193,6 +1237,8 @@
         $('btn-save-data').addEventListener('click', saveTimelineData);
         $('btn-load-data').addEventListener('click', () => $('f-load-data').click());
         $('f-load-data').addEventListener('change', loadTimelineData);
+        // Application Windows : fichier .frise ouvert par double-clic (voir preload.js)
+        if (window.friseDesktop) window.friseDesktop.onOpenFile(buf => openFriseBuffer(buf));
         $('btn-reset-data').addEventListener('click', resetTimeline);
 
         document.addEventListener('keydown', e => {
