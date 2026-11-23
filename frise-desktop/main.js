@@ -9,7 +9,7 @@ let pendingFile = null;
 
 // Fichier .frise passé en argument (double-clic dans l'Explorateur ou « Ouvrir avec »)
 function friseArg(argv) {
-  return argv.slice(1).find(a => /\.(frise|json)$/i.test(a) && fs.existsSync(a)) || null;
+  return argv.slice(1).find(a => /\.frise$/i.test(a) && fs.existsSync(a)) || null;
 }
 
 function sendFile(file) {
